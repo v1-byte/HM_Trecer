@@ -122,6 +122,32 @@ fun App() {
         ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
             PackageManager.PERMISSION_GRANTED
 
+    fun saveReading(p: Pending, hm: Double, operator: String, service: Boolean) {
+        val unit = state.active() ?: return
+        val now = System.currentTimeMillis()
+        val bmp = p.bitmap
+        val photoFile = if (bmp != null) {
+            File(File(context.filesDir, "photos/${unit.id}"), "$now.jpg")
+        } else null
+
+        val draft = Reading(
+            timeMillis = now, hm = hm, operator = operator,
+            photoPath = photoFile?.absolutePath, isService = service,
+            latitude = p.gps?.latitude, longitude = p.gps?.longitude
+        )
+        val newUnit = unit.copy(readings = unit.readings + draft)
+        val newState = state.copy(units = state.units.map { if (it.id == unit.id) newUnit else it })
+        val summary = summarize(newUnit) ?: return
+
+        if (bmp != null && photoFile != null) {
+            Watermark.save(Watermark.stamp(bmp, watermarkLines(newUnit, summary, draft)), photoFile)
+        }
+        commit(newState)
+        pending = null
+        message = if (service) "Titik awal servis tersimpan otomatis: ${fmtHm(hm)} jam"
+        else "Tersimpan otomatis. Sisa ${fmtHm(summary.remaining)} jam"
+    }
+
     fun startReview(bitmap: Bitmap?, service: Boolean, gps: GpsFix?) {
         if (bitmap == null) {
             pending = Pending(null, service, null, true, gps)
@@ -160,32 +186,6 @@ fun App() {
         runCatching { Watermark.decode(source) }
             .onSuccess { startReview(it, service, gps) }
             .onFailure { message = "Foto tidak bisa dibuka." }
-    }
-
-    fun saveReading(p: Pending, hm: Double, operator: String, service: Boolean) {
-        val unit = state.active() ?: return
-        val now = System.currentTimeMillis()
-        val bmp = p.bitmap
-        val photoFile = if (bmp != null) {
-            File(File(context.filesDir, "photos/${unit.id}"), "$now.jpg")
-        } else null
-
-        val draft = Reading(
-            timeMillis = now, hm = hm, operator = operator,
-            photoPath = photoFile?.absolutePath, isService = service,
-            latitude = p.gps?.latitude, longitude = p.gps?.longitude
-        )
-        val newUnit = unit.copy(readings = unit.readings + draft)
-        val newState = state.copy(units = state.units.map { if (it.id == unit.id) newUnit else it })
-        val summary = summarize(newUnit) ?: return
-
-        if (bmp != null && photoFile != null) {
-            Watermark.save(Watermark.stamp(bmp, watermarkLines(newUnit, summary, draft)), photoFile)
-        }
-        commit(newState)
-        pending = null
-        message = if (service) "Titik awal servis tersimpan: ${fmtHm(hm)} jam"
-        else "Tersimpan. Sisa ${fmtHm(summary.remaining)} jam"
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
