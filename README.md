@@ -6,7 +6,9 @@ Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitu
 
 ## Tampilan terbaru
 
-Dashboard utama kini memakai gaya aplikasi timestamp/GPS untuk bukti kerja: unit aktif, status servis, pemakaian HM, sisa interval, perkiraan servis, aksi kamera utama, dan riwayat bukti kerja ditampilkan sebagai kartu yang lebih ringkas. Fitur foto, GPS, watermark, OCR, ekspor, dan backup tetap tersedia.
+Layar utama kini mengikuti konsep **camera-first photo proof** seperti aplikasi Timemark: kamera menjadi fokus layar, dengan toolbar ringkas, tombol shutter bundar, area watermark langsung di atas preview foto, status **Saved**, serta navigasi **Preview / Files / Templates** dan mode **Video / Photo / Attendance**. Data HM dan servis tetap ditampilkan sebagai strip ringkas agar tidak mengganggu fungsi utama kamera.
+
+Konsep ini digunakan untuk dokumentasi lapangan: setiap foto menjadi bukti kerja yang memuat waktu, unit, lokasi, GPS, HM terakhir, pemakaian sejak servis, sisa interval, dan status servis. Fitur galeri, input manual, OCR, ekspor, dan backup tetap tersedia.
 
 Perubahan ini hanya pada lapisan presentasi. Rumus pemakaian sejak titik servis, ambang peringatan 20 jam, status wajib servis, validasi HM, dan notifikasi tetap menggunakan sistem yang sudah ada.
 
