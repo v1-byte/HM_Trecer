@@ -17,7 +17,7 @@ Kredensial signing tidak disimpan di repo. Build release membaca environment var
 
 Untuk membuat nilai base64 dari keystore di komputer: `base64 -w 0 hmtracker-release.jks`. Simpan keystore asli di tempat yang aman dan buat cadangannya. Jangan commit file `.jks` ke repo.
 
-Workflow memvalidasi keystore sebelum build. Jika secret belum diisi, base64 rusak, atau password salah, workflow tetap membuat APK release **unsigned** dan memberi peringatan; APK produksi harus dibangun ulang setelah secret signing yang valid dipasang.
+Workflow memvalidasi keystore sebelum build. Jika secret belum diisi, base64 rusak, atau password salah, workflow tetap membuat APK release dengan **debug key** dan memberi peringatan agar dapat dipasang untuk testing; APK produksi harus dibangun ulang setelah secret signing yang valid dipasang.
 
 Tes unit untuk logika (status, pemakaian, validasi, watermark) dijalankan dengan `gradle :app:testDebugUnitTest`.
 

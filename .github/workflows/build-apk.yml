@@ -32,12 +32,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            echo "Keystore tidak dikonfigurasi; release akan dibuat unsigned."
+            echo "Keystore tidak dikonfigurasi; release akan dibuat dengan debug key untuk testing."
             exit 0
           fi
 
           if ! echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/hmtracker.jks"; then
-            echo "::warning::HM_KEYSTORE_BASE64 bukan base64 yang valid; release akan dibuat unsigned."
+            echo "::warning::HM_KEYSTORE_BASE64 bukan base64 yang valid; release akan dibuat dengan debug key untuk testing."
             rm -f "$RUNNER_TEMP/hmtracker.jks"
             exit 0
           fi
@@ -46,7 +46,7 @@ jobs:
             echo "HM_KEYSTORE_PATH=$RUNNER_TEMP/hmtracker.jks" >> "$GITHUB_ENV"
             echo "Keystore valid; release akan ditandatangani."
           else
-            echo "::warning::Keystore tidak valid atau password salah; release akan dibuat unsigned."
+            echo "::warning::Keystore tidak valid atau password salah; release akan dibuat dengan debug key untuk testing."
             rm -f "$RUNNER_TEMP/hmtracker.jks"
           fi
 

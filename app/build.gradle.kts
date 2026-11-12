@@ -33,8 +33,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (System.getenv("HM_KEYSTORE_PATH") != null) {
-                signingConfig = signingConfigs.getByName("release")
+            // Jika keystore produksi belum tersedia, gunakan debug key agar CI
+            // tetap menghasilkan app-release.apk untuk instalasi/testing.
+            signingConfig = if (System.getenv("HM_KEYSTORE_PATH") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
     }
