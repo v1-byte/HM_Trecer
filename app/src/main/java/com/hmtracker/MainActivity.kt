@@ -639,21 +639,21 @@ fun StatusCard(summary: Summary?, limit: Double) {
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Column {
-                        Text("Pemakaian", fontSize = 12.sp, color = fg.copy(alpha = 0.7f))
+                        Text("Pemakaian", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.7f))
                         Text(
                             "${fmtHm(summary.used)} jam",
                             fontWeight = FontWeight.Black,
                             fontSize = 30.sp,
-                            color = fg
+                            color = fg as Color
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Sisa", fontSize = 12.sp, color = fg.copy(alpha = 0.7f))
+                        Text("Sisa", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.7f))
                         Text(
                             "${fmtHm(summary.remaining)} jam",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = fg
+                            color = fg as Color
                         )
                     }
                 }
@@ -664,12 +664,12 @@ fun StatusCard(summary: Summary?, limit: Double) {
                     trackColor = Color.White
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("HM ${fmtHm(summary.startHm)} → ${fmtHm(summary.lastHm)}", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
-                    Text("Batas ${fmtHm(limit)} jam", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
+                    Text("HM ${fmtHm(summary.startHm)} → ${fmtHm(summary.lastHm)}", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.8f))
+                    Text("Batas ${fmtHm(limit)} jam", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.8f))
                 }
-                summary.hoursPerDay?.let { Text("Rata-rata ${fmtHm(it)} jam per hari", fontSize = 12.sp, color = fg.copy(alpha = 0.8f)) }
+                summary.hoursPerDay?.let { Text("Rata-rata ${fmtHm(it)} jam per hari", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.8f)) }
                 summary.estimateMillis?.let {
-                    Text("Perkiraan servis: ${fmtDate(it)}", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
+                    Text("Perkiraan servis: ${fmtDate(it)}", fontSize = 12.sp, color = (fg as Color).copy(alpha = 0.8f))
                 }
             }
         }
