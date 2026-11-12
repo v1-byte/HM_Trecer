@@ -1,7 +1,9 @@
 package com.hmtracker
-
+import androidx.compose.foundation.ExperimentalFoundationApi
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,9 +71,10 @@ fun App() {
     val context = LocalContext.current
     var state by remember { mutableStateOf(Storage.load(context)) }
     var pending by remember { mutableStateOf<Pending?>(null) }
-    var showSettings by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(state.siteName.isBlank()) }
     var message by remember { mutableStateOf<String?>(null) }
     var captureService by remember { mutableStateOf(false) }
+    var toDelete by remember { mutableStateOf<Reading?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     val captureFile = remember { File(context.cacheDir, "capture.jpg") }
@@ -81,6 +85,17 @@ fun App() {
     fun commit(newState: AppState) {
         state = newState
         Storage.save(context, newState)
+    }
+
+    fun shareFile(file: File, mime: String, title: String) {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mime
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, title))
     }
 
     fun startReview(bitmap: Bitmap?, service: Boolean) {
@@ -127,23 +142,51 @@ fun App() {
         }
     }
 
-    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        if (ok) decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
+    val takePhoto = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { ok ->
+        if (ok) {
+            decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
+        }
     }
 
-    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val pickPhoto = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
         if (uri != null) {
             decodeAndReview(ImageDecoder.createSource(context.contentResolver, uri), false)
         }
     }
 
-    LaunchedEffect(message) {
-        val m = message ?: return@LaunchedEffect
-        message = null
-        snackbar.showSnackbar(m)
+    val restorePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val text = stream.bufferedReader().readText()
+                val restored = parseState(text)
+                if (restored.readings.isEmpty() && restored.siteName.isBlank()) {
+                    message = "File backup tidak valid atau kosong."
+                } else {
+                    commit(restored)
+                    message = "Restore berhasil. ${restored.readings.size} catatan dimuat."
+                    showSettings = false
+                }
+            } ?: run { message = "Tidak bisa membaca file." }
+        }.onFailure { message = "Restore gagal: ${it.message}" }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { innerPadding ->
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            message = null
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             if (showSettings) {
                 SettingsScreen(
@@ -151,8 +194,28 @@ fun App() {
                     onSave = { newState ->
                         commit(newState)
                         showSettings = false
+                        message = "Pengaturan disimpan"
                     },
-                    onBack = { showSettings = false }
+                    onExportCsv = {
+                        runCatching {
+                            val file = Export.writeCsv(context, state)
+                            shareFile(file, "text/csv", "Export HM Tracker")
+                        }.onFailure { message = "Export gagal: ${it.message}" }
+                    },
+                    onBackup = {
+                        runCatching {
+                            val file = Export.writeBackup(context, state)
+                            shareFile(file, "application/json", "Backup HM Tracker")
+                        }.onFailure { message = "Backup gagal: ${it.message}" }
+                    },
+                    onRestore = { restorePicker.launch("application/json") },
+                    onBack = {
+                        if (state.siteName.isBlank()) {
+                            message = "Isi Tempat dulu sebelum kembali."
+                        } else {
+                            showSettings = false
+                        }
+                    }
                 )
             } else {
                 HomeScreen(
@@ -171,7 +234,8 @@ fun App() {
                         )
                     },
                     onManual = { startReview(null, false) },
-                    onSettings = { showSettings = true }
+                    onSettings = { showSettings = true },
+                    onDeleteRequest = { toDelete = it }
                 )
             }
         }
@@ -185,6 +249,23 @@ fun App() {
             onDismiss = { pending = null }
         )
     }
+
+    toDelete?.let { r ->
+        DeleteConfirmDialog(
+            reading = r,
+            onConfirm = {
+                val newReadings = state.readings.filterNot {
+                    it.timeMillis == r.timeMillis && it.hm == r.hm
+                }
+                // Hapus file foto jika ada
+                r.photoPath?.let { path -> runCatching { File(path).delete() } }
+                commit(state.copy(readings = newReadings))
+                toDelete = null
+                message = "Catatan dihapus"
+            },
+            onDismiss = { toDelete = null }
+        )
+    }
 }
 
 @Composable
@@ -194,7 +275,8 @@ fun HomeScreen(
     onServiceFoto: () -> Unit,
     onGaleri: () -> Unit,
     onManual: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onDeleteRequest: (Reading) -> Unit
 ) {
     val summary = summarize(state)
     val history = state.sorted().asReversed()
@@ -209,7 +291,16 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("HM Tracker", style = MaterialTheme.typography.headlineSmall)
+                Column {
+                    Text("HM Tracker", style = MaterialTheme.typography.headlineSmall)
+                    if (state.siteName.isNotBlank()) {
+                        Text(
+                            state.siteName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 TextButton(onClick = onSettings) { Text("Pengaturan") }
             }
         }
@@ -235,11 +326,28 @@ fun HomeScreen(
                 Text("Input manual")
             }
         }
-        item { Text("Riwayat", style = MaterialTheme.typography.titleMedium) }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Riwayat", style = MaterialTheme.typography.titleMedium)
+                if (history.isNotEmpty()) {
+                    Text(
+                        "Tahan untuk hapus",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
         if (history.isEmpty()) {
             item { Text("Belum ada catatan.") }
         }
-        items(history) { r -> HistoryRow(r) }
+        items(history, key = { "${it.timeMillis}_${it.hm}" }) { r ->
+            HistoryRow(r, onLongClick = { onDeleteRequest(r) })
+        }
     }
 }
 
@@ -313,9 +421,17 @@ fun Metric(label: String, value: String, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HistoryRow(r: Reading) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun HistoryRow(r: Reading, onLongClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClick
+            )
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

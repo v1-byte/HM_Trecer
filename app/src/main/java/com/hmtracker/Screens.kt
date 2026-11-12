@@ -1,5 +1,6 @@
 package com.hmtracker
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -18,7 +18,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,7 +49,6 @@ fun ReviewDialog(
     var hmText by remember(ocr) {
         mutableStateOf(ocr?.hmCandidates?.firstOrNull()?.let { fmtHm(it) } ?: "")
     }
-    // Operator sengaja dikosongkan. Diisi manual jika perlu, atau dibiarkan kosong.
     var opText by remember { mutableStateOf("") }
     var service by remember(pending.service) { mutableStateOf(pending.service) }
 
@@ -58,29 +59,32 @@ fun ReviewDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (service) "Cek HM servis" else "Cek hasil baca") },
+        title = { Text(if (service) "Cek titik awal servis" else "Cek hasil baca HM") },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (!pending.ocrDone) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Text("Membaca angka dari foto…")
+                    }
+                }
+
                 pending.bitmap?.let { bmp ->
                     Image(
                         bitmap = bmp.asImageBitmap(),
-                        contentDescription = "Foto meter",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth().height(160.dp)
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
 
-                if (!pending.ocrDone) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text("Membaca foto...")
-                    }
-                } else {
-                    val cands = (ocr?.hmCandidates ?: emptyList()).take(3)
+                if (pending.ocrDone) {
+                    val cands = ocr?.hmCandidates.orEmpty()
                     if (cands.size > 1) {
                         Text("Kandidat HM dari foto (ketuk untuk pilih):")
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -129,11 +133,41 @@ fun ReviewDialog(
     )
 }
 
-/** Layar pengaturan: tempat dan batas servis. */
+/** Dialog konfirmasi hapus catatan. */
+@Composable
+fun DeleteConfirmDialog(
+    reading: Reading,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Hapus catatan?") },
+        text = {
+            Text(
+                "HM ${fmtHm(reading.hm)} jam · ${fmtDateTime(reading.timeMillis)}" +
+                    if (reading.isService) " (titik servis)" else ""
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Hapus", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
+}
+
+/** Layar pengaturan + export / backup. */
 @Composable
 fun SettingsScreen(
     state: AppState,
     onSave: (AppState) -> Unit,
+    onExportCsv: () -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
     onBack: () -> Unit
 ) {
     var site by remember { mutableStateOf(state.siteName) }
@@ -175,8 +209,35 @@ fun SettingsScreen(
                 )
             },
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Simpan") }
+        ) { Text("Simpan pengaturan") }
 
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        Text("Data", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Export CSV untuk laporan. Backup JSON untuk cadangan. Restore menimpa data saat ini.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        OutlinedButton(
+            onClick = onExportCsv,
+            enabled = state.readings.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Export CSV") }
+
+        OutlinedButton(
+            onClick = onBackup,
+            enabled = state.readings.isNotEmpty() || state.siteName.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Backup (JSON)") }
+
+        OutlinedButton(
+            onClick = onRestore,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Restore dari file…") }
+
+        Spacer(Modifier.height(8.dp))
         TextButton(onClick = onBack) { Text("Kembali") }
     }
 }
