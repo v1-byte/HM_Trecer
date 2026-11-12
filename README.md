@@ -11,21 +11,18 @@ Aplikasi Android untuk mencatat jam meter (Engine Hours), menghitung pemakaian s
 ![Contoh watermark](docs/watermark-contoh.png)
 
 - Tanggal, jam, dan operator diberi bingkai.
-- Baris operator hanya muncul jika kolom operator diisi. Contoh di atas memakai operator "Lukman" hanya untuk ilustrasi.
+- Baris operator hanya muncul jika kolom operator diisi.
 - Warna status mengikuti kondisi: hijau untuk Lancar, kuning untuk Peringatan, dan merah untuk Wajib servis.
-
-Gambar di atas adalah render desain, bukan tangkapan layar dari HP. Setelah APK berjalan di HP, tangkapan layar asli bisa diganti dengan menaruh file baru di folder `docs/` dengan nama yang sama.
 
 ## Cara memasang (tanpa Android Studio)
 
-1. Upload seluruh isi folder ini ke repositori GitHub (branch `main`).
-2. Buka tab **Actions** di repositori, pilih **Build APK**, lalu tunggu sampai bertanda hijau.
-3. Buka hasil build, unduh artifact **HMTracker-debug**, dan ekstrak file `app-debug.apk`.
-4. Pasang APK di HP. Izinkan pemasangan dari sumber tidak dikenal jika diminta.
+1. Buka tab **Actions** di repositori, pilih **Build APK**, lalu tunggu sampai bertanda hijau.
+2. Buka hasil build, unduh artifact **HMTracker-debug**, dan ekstrak file `app-debug.apk`.
+3. Pasang APK di HP. Izinkan pemasangan dari sumber tidak dikenal jika diminta.
 
 ## Pemakaian pertama kali
 
-1. Buka **Pengaturan**, isi tempat dan batas servis (default 200 jam).
+1. Buka **Pengaturan**, isi **Tempat** dan **Batas servis** (default 200 jam).
 2. Tekan **Foto HM Servis (titik awal)**, periksa angka HM, lalu **Simpan**.
 3. Untuk pembacaan berikutnya, tekan **Foto HM**. Aplikasi membaca HM dari foto dan menampilkannya untuk dicek sebelum disimpan.
 

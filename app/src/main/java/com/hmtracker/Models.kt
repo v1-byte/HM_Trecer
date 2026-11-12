@@ -14,7 +14,7 @@ data class Reading(
 )
 
 data class AppState(
-    val siteName: String = "Kalimantan",
+    val siteName: String = "",
     val serviceLimit: Double = 200.0,
     val readings: List<Reading> = emptyList()
 ) {
@@ -57,7 +57,7 @@ fun parseState(json: String?): AppState {
     }
 
     return AppState(
-        siteName = root.optString("siteName", "Kalimantan"),
+        siteName = root.optString("siteName", ""),
         serviceLimit = root.optDouble("serviceLimit", 200.0),
         readings = reads
     )
