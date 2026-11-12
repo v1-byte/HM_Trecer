@@ -454,13 +454,12 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(horizontal = 16.dp),
+            .background(Color(0xFFF7F7FB))
+            .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { Spacer(Modifier.height(8.dp)) }
+        item { Spacer(Modifier.height(10.dp)) }
 
-        // Header
         item {
             Row(
                 Modifier.fillMaxWidth(),
@@ -468,14 +467,11 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("HM TRACKER", fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color(0xFF1A237E))
-                    Text(unit.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    if (unit.siteName.isNotBlank()) {
-                        Text(unit.siteName, fontSize = 12.sp, color = Color(0xFF78909C))
-                    }
+                    Text("HM Tracker", fontWeight = FontWeight.Black, fontSize = 25.sp, color = Color(0xFF20203A))
+                    Text("Bukti kerja dan servis alat", fontSize = 12.sp, color = Color(0xFF77778B))
                 }
                 TextButton(onClick = onSettings) {
-                    Text("⚙️  Atur", fontSize = 14.sp)
+                    Text("Pengaturan", fontSize = 14.sp, color = Color(0xFF6549A8))
                 }
             }
         }
@@ -484,17 +480,36 @@ fun HomeScreen(
             item { UnitPicker(state.units, unit.id, onSelectUnit) }
         }
 
-        // Status
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEAF8)),
+                shape = RoundedCornerShape(22.dp),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("UNIT AKTIF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF766D92))
+                            Text(unit.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF26243D))
+                            if (unit.siteName.isNotBlank()) Text(unit.siteName, fontSize = 12.sp, color = Color(0xFF77778B))
+                        }
+                        Text("GPS", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF6549A8), modifier = Modifier.background(Color.White, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 7.dp))
+                    }
+                    Text("Ambil foto meter dengan waktu dan lokasi otomatis", fontSize = 13.sp, color = Color(0xFF5D5871))
+                }
+            }
+        }
+
         item { StatusCard(summary, unit.serviceLimit) }
 
-        // PRIMARY ACTION
         item {
             if (!hasService) {
-                // First time guidance
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -513,42 +528,43 @@ fun HomeScreen(
                         )
                         Button(
                             onClick = onServiceFoto,
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
-                            shape = RoundedCornerShape(14.dp)
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6549A8)),
+                            shape = RoundedCornerShape(27.dp)
                         ) {
-                            Text("📷  FOTO HM SERVIS SEKARANG", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Foto HM servis pertama", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                 }
             } else {
                 Button(
                     onClick = onFoto,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
-                    shape = RoundedCornerShape(14.dp)
+                    modifier = Modifier.fillMaxWidth().height(58.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6549A8)),
+                    shape = RoundedCornerShape(29.dp)
                 ) {
-                    Text("📷  FOTO HM", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text("Ambil foto HM sekarang", fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
             }
         }
 
-        // Secondary actions
         item {
-            Text("Lainnya", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF78909C))
+            Text("Tambahkan bukti kerja", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF20203A))
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onGaleri,
                     modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(10.dp)
-                ) { Text("Galeri", fontSize = 13.sp) }
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF6549A8))
+                ) { Text("Dari galeri", fontSize = 13.sp) }
                 OutlinedButton(
                     onClick = onManual,
                     modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(10.dp)
-                ) { Text("Manual", fontSize = 13.sp) }
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF6549A8))
+                ) { Text("Input manual", fontSize = 13.sp) }
             }
         }
         if (hasService) {
@@ -569,9 +585,9 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Riwayat", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Bukti kerja terbaru", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF20203A))
                 if (history.isNotEmpty()) {
-                    Text("tahan untuk hapus", fontSize = 11.sp, color = Color(0xFF90A4AE))
+                    Text("Tahan untuk hapus", fontSize = 11.sp, color = Color(0xFF9999AA))
                 }
             }
         }
@@ -606,16 +622,14 @@ fun StatusCard(summary: Summary?, limit: Double) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = bg as Color),
-        elevation = CardDefaults.cardElevation(2.dp),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(0.dp),
+        shape = RoundedCornerShape(22.dp)
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                label as String,
-                fontWeight = FontWeight.Black,
-                fontSize = 18.sp,
-                color = fg as Color
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("STATUS SERVIS", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = (fg as Color).copy(alpha = 0.75f))
+                Text(label as String, fontWeight = FontWeight.Black, fontSize = 13.sp, color = fg, modifier = Modifier.background(Color.White.copy(alpha = 0.65f), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
+            }
             if (summary == null) {
                 Text("Foto HM Servis dulu untuk mulai hitung.", color = fg, fontSize = 13.sp)
             } else {
@@ -629,7 +643,7 @@ fun StatusCard(summary: Summary?, limit: Double) {
                         Text(
                             "${fmtHm(summary.used)} jam",
                             fontWeight = FontWeight.Black,
-                            fontSize = 28.sp,
+                            fontSize = 30.sp,
                             color = fg
                         )
                     }
@@ -653,6 +667,7 @@ fun StatusCard(summary: Summary?, limit: Double) {
                     Text("HM ${fmtHm(summary.startHm)} → ${fmtHm(summary.lastHm)}", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
                     Text("Batas ${fmtHm(limit)} jam", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
                 }
+                summary.hoursPerDay?.let { Text("Rata-rata ${fmtHm(it)} jam per hari", fontSize = 12.sp, color = fg.copy(alpha = 0.8f)) }
                 summary.estimateMillis?.let {
                     Text("Perkiraan servis: ${fmtDate(it)}", fontSize = 12.sp, color = fg.copy(alpha = 0.8f))
                 }
@@ -669,7 +684,8 @@ fun HistoryRow(r: Reading, onLongClick: () -> Unit) {
             .fillMaxWidth()
             .combinedClickable(onClick = {}, onLongClick = onLongClick),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),

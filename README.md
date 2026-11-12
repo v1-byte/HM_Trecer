@@ -4,6 +4,12 @@ Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitu
 
 **Versi 1.2.0**
 
+## Tampilan terbaru
+
+Dashboard utama kini memakai gaya aplikasi timestamp/GPS untuk bukti kerja: unit aktif, status servis, pemakaian HM, sisa interval, perkiraan servis, aksi kamera utama, dan riwayat bukti kerja ditampilkan sebagai kartu yang lebih ringkas. Fitur foto, GPS, watermark, OCR, ekspor, dan backup tetap tersedia.
+
+Perubahan ini hanya pada lapisan presentasi. Rumus pemakaian sejak titik servis, ambang peringatan 20 jam, status wajib servis, validasi HM, dan notifikasi tetap menggunakan sistem yang sudah ada.
+
 ## Fitur
 
 - **Multi unit / alat** — banyak excavator, dozer, dll dalam satu app
