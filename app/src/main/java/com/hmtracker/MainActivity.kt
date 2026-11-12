@@ -132,10 +132,25 @@ fun App() {
         MeterOcr.read(
             bitmap = bitmap,
             lastHm = unit?.sorted()?.lastOrNull()?.hm,
-            onResult = { res -> pending = pending?.copy(ocr = res, ocrDone = true) },
+            onResult = { res ->
+                val updated = pending?.copy(ocr = res, ocrDone = true)
+                pending = updated
+                val candidate = res.hmCandidates.firstOrNull()
+                val active = state.active()
+                if (updated != null && candidate != null && active != null) {
+                    val error = blockingError(candidate, active, service)
+                    if (error == null) {
+                        saveReading(updated, candidate, "", service)
+                    } else {
+                        message = error
+                    }
+                } else if (candidate == null) {
+                    message = "Angka HM belum terbaca. Foto ulang dengan meter lebih dekat."
+                }
+            },
             onError = { err ->
                 pending = pending?.copy(ocrDone = true)
-                message = "Baca otomatis gagal. Isi angka HM secara manual."
+                message = "Baca otomatis gagal. Foto ulang dengan meter lebih jelas."
             }
         )
     }
@@ -696,9 +711,8 @@ fun HomeScreen(
             Text("ATTENDANCE", color = Color(0xFF8B8C91), fontSize = 13.sp)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onGaleri, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Files") }
-            OutlinedButton(onClick = onManual, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Manual HM") }
-            OutlinedButton(onClick = onServiceFoto, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Servis") }
+            OutlinedButton(onClick = onGaleri, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Files / Galeri") }
+            OutlinedButton(onClick = onServiceFoto, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Foto Servis") }
         }
 
         Card(Modifier.fillMaxWidth().padding(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF7EE)), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(0.dp)) {
