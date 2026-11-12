@@ -436,7 +436,7 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
 
 /* ========== HOME ========== */
 @Composable
-fun HomeScreen(
+fun LegacyHomeScreen(
     state: AppState,
     unit: UnitMachine,
     onSelectUnit: (String) -> Unit,
@@ -607,6 +607,109 @@ fun HomeScreen(
         }
 
         item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+/* ========== CAMERA-FIRST HOME ========== */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HomeScreen(
+    state: AppState,
+    unit: UnitMachine,
+    onSelectUnit: (String) -> Unit,
+    onFoto: () -> Unit,
+    onServiceFoto: () -> Unit,
+    onGaleri: () -> Unit,
+    onManual: () -> Unit,
+    onSettings: () -> Unit,
+    onDeleteRequest: (Reading) -> Unit
+) {
+    val summary = summarize(unit)
+    val history = unit.sorted().asReversed()
+    val last = history.firstOrNull()
+    val statusColor = when (summary?.status) {
+        Status.RED -> Color(0xFFFFB4AB)
+        Status.YELLOW -> Color(0xFFFFDFA1)
+        else -> Color(0xFFB9F6C8)
+    }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFFDFBFF))) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("☰", fontSize = 27.sp, color = Color(0xFF202124))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(unit.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF202124))
+                Text(unit.siteName.ifBlank { "HM Tracker" }, fontSize = 11.sp, color = Color(0xFF6F7075))
+            }
+            TextButton(onClick = onSettings) { Text("⚙", fontSize = 23.sp, color = Color(0xFF202124)) }
+        }
+
+        Box(
+            Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFF303238))
+        ) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("◌", color = Color.White, fontSize = 27.sp)
+                    Text("Bagikan", color = Color.White, fontSize = 13.sp, modifier = Modifier.background(Color(0x66000000), RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 8.dp))
+                    Text("◉", color = Color.White, fontSize = 24.sp)
+                }
+
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("PREVIEW FOTO", color = Color.White.copy(alpha = 0.65f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(fmtTime(System.currentTimeMillis()), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Light)
+                    Text(fmtDate(System.currentTimeMillis()), color = Color.White, fontSize = 16.sp)
+                    Text("HM ${summary?.let { fmtHm(it.lastHm) } ?: "—"} jam  •  ${unit.siteName.ifBlank { "Lokasi belum diisi" }}", color = Color.White, fontSize = 13.sp)
+                    Text("GPS aktif  •  watermark otomatis  •  ${summary?.status?.label ?: "Siap mencatat"}", color = statusColor, fontSize = 12.sp)
+                }
+
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("▣", color = Color.White, fontSize = 25.sp)
+                        Text("Preview", color = Color.White, fontSize = 10.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("▤", color = Color.White, fontSize = 25.sp)
+                        Text("Files", color = Color.White, fontSize = 10.sp)
+                    }
+                    Box(
+                        Modifier.size(76.dp).clip(CircleShape).background(Color.White).combinedClickable(onClick = onFoto, onLongClick = onServiceFoto),
+                        contentAlignment = Alignment.Center
+                    ) { Box(Modifier.size(62.dp).clip(CircleShape).background(Color.White).background(Color.Transparent)) }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("▤", color = Color.White, fontSize = 25.sp)
+                        Text("Templates", color = Color.White, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+
+        Row(Modifier.fillMaxWidth().padding(horizontal = 54.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("VIDEO", color = Color(0xFF8B8C91), fontSize = 13.sp)
+            Text("PHOTO", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF202124))
+            Text("ATTENDANCE", color = Color(0xFF8B8C91), fontSize = 13.sp)
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onGaleri, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Files") }
+            OutlinedButton(onClick = onManual, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Manual HM") }
+            OutlinedButton(onClick = onServiceFoto, modifier = Modifier.weight(1f).height(40.dp), shape = RoundedCornerShape(20.dp)) { Text("Servis") }
+        }
+
+        Card(Modifier.fillMaxWidth().padding(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF7EE)), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(0.dp)) {
+            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("HM & SERVIS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF367345))
+                    Text(summary?.let { "${fmtHm(it.used)} jam terpakai  •  sisa ${fmtHm(it.remaining)} jam" } ?: "Foto HM servis untuk mulai menghitung", fontSize = 13.sp, color = Color(0xFF245E33))
+                }
+                Text(summary?.status?.label ?: "Belum ada data", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF367345))
+            }
+        }
     }
 }
 
