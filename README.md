@@ -2,7 +2,7 @@
 
 Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitung pemakaian sejak servis, watermark GPS, dan notifikasi peringatan servis.
 
-**Versi 1.2.0**
+**Versi aplikasi: 1.3.0 — UI camera-first photo proof**
 
 ## Tampilan terbaru
 
@@ -11,6 +11,8 @@ Layar utama kini mengikuti konsep **camera-first photo proof** seperti aplikasi 
 Konsep ini digunakan untuk dokumentasi lapangan: setiap foto menjadi bukti kerja yang memuat waktu, unit, lokasi, GPS, HM terakhir, pemakaian sejak servis, sisa interval, dan status servis. Fitur galeri, input manual, OCR, ekspor, dan backup tetap tersedia.
 
 Perubahan ini hanya pada lapisan presentasi. Rumus pemakaian sejak titik servis, ambang peringatan 20 jam, status wajib servis, validasi HM, dan notifikasi tetap menggunakan sistem yang sudah ada.
+
+Catatan perubahan lengkap tersedia di [`docs/CATATAN-PERUBAHAN.md`](docs/CATATAN-PERUBAHAN.md).
 
 ## Fitur
 
@@ -31,6 +33,19 @@ Perubahan ini hanya pada lapisan presentasi. Rumus pemakaian sejak titik servis,
 3. Pasang di HP.
 
 > Artifact debug juga tersedia jika diperlukan.
+
+## Pemetaan layar camera-first
+
+Layar utama dirancang untuk dipakai di lapangan, bukan sebagai dashboard administrasi. Area terbesar adalah preview kamera. Toolbar atas berisi menu, **Bagikan**, dan kontrol kamera. Informasi watermark ditampilkan di atas preview, lalu tombol shutter bundar menjadi aksi utama.
+
+- **Preview** — kembali ke area preview kamera.
+- **Files** — memilih foto dari galeri atau melihat bukti foto yang tersimpan.
+- **Shutter** — mengambil foto HM; tekan lama digunakan untuk foto titik servis baru.
+- **Templates** — jalur menuju pengaturan/template dan konfigurasi unit.
+- **Video / Photo / Attendance** — pola mode kamera yang mengikuti konsep aplikasi dokumentasi lapangan; mode **Photo** tetap menjadi mode aktif untuk pencatatan HM.
+- **HM & Servis** — strip ringkas di bawah kamera yang menampilkan pemakaian, sisa interval, dan status tanpa mengambil alih layar kamera.
+
+Setelah foto disimpan, watermark foto berisi waktu, unit, HM, lokasi/GPS, pemakaian, sisa interval, dan status servis. Fungsi **Saved** pada layar menandai bahwa bukti telah tersimpan.
 
 ## Pemakaian pertama kali
 
@@ -110,6 +125,13 @@ Di **Pengaturan**:
 
 ## Catatan teknis
 
-- Keystore release ada di `keystore/hmtracker-release.jks` (password: `hmtracker2026`, alias: `hmtracker`).
-- Untuk produksi serius, ganti keystore dengan milik sendiri dan simpan password di GitHub Secrets.
+- Build release menggunakan Gradle 8.9 melalui GitHub Actions pada `.github/workflows/build-apk.yml`.
+- Keystore release berada di `keystore/hmtracker-release.jks`; password dan alias tidak dicantumkan di dokumentasi. Untuk produksi serius, ganti keystore dengan milik sendiri dan simpan kredensial di GitHub Secrets.
 - Data hanya di HP. Backup secara berkala.
+
+## Status build terakhir
+
+- Commit UI camera-first: `6206590`
+- Commit dokumentasi terakhir: `4a5cc2e`
+- Workflow release berhasil: [Build APK #43171806350](https://github.com/v1-byte/HM_Trecer/actions/runs/43171806350)
+- Artifact: `HMTracker-release/app-release.apk`
