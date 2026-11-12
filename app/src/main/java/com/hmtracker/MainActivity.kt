@@ -171,16 +171,7 @@ fun App() {
             onResult = { res ->
                 val updated = pending?.copy(ocr = res, ocrDone = true)
                 pending = updated
-                val candidate = res.hmCandidates.firstOrNull()
-                val active = state.active()
-                if (updated != null && candidate != null && active != null) {
-                    val error = blockingError(candidate, active, service)
-                    if (error == null) {
-                        saveReading(updated, candidate, "", service)
-                    } else {
-                        message = error
-                    }
-                } else if (candidate == null) {
+                if (res.hmCandidates.isEmpty()) {
                     message = "Angka HM belum terbaca. Foto ulang dengan meter lebih dekat."
                 }
             },
