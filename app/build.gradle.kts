@@ -12,8 +12,24 @@ android {
         applicationId = "com.hmtracker"
         minSdk = 28
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/hmtracker-release.jks")
+            storePassword = "hmtracker2026"
+            keyAlias = "hmtracker"
+            keyPassword = "hmtracker2026"
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     buildFeatures {

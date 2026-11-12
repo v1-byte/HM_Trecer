@@ -1,15 +1,18 @@
 package com.hmtracker
-import androidx.compose.foundation.ExperimentalFoundationApi
+
+import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,23 +49,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import java.io.File
+import java.util.UUID
 
-/** Foto atau input yang sedang ditinjau sebelum disimpan. */
 data class Pending(
     val bitmap: Bitmap?,
     val service: Boolean,
     val ocr: OcrResult? = null,
-    val ocrDone: Boolean = false
+    val ocrDone: Boolean = false,
+    val gps: GpsFix? = null
 )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Notify.ensureChannel(this)
         setContent {
             MaterialTheme {
                 App()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Notify.checkAndNotify(this, Storage.load(this))
     }
 }
 
@@ -71,7 +81,7 @@ fun App() {
     val context = LocalContext.current
     var state by remember { mutableStateOf(Storage.load(context)) }
     var pending by remember { mutableStateOf<Pending?>(null) }
-    var showSettings by remember { mutableStateOf(state.siteName.isBlank()) }
+    var showSettings by remember { mutableStateOf(state.units.isEmpty()) }
     var message by remember { mutableStateOf<String?>(null) }
     var captureService by remember { mutableStateOf(false) }
     var toDelete by remember { mutableStateOf<Reading?>(null) }
@@ -85,6 +95,7 @@ fun App() {
     fun commit(newState: AppState) {
         state = newState
         Storage.save(context, newState)
+        Notify.checkAndNotify(context, newState)
     }
 
     fun shareFile(file: File, mime: String, title: String) {
@@ -98,15 +109,16 @@ fun App() {
         context.startActivity(Intent.createChooser(intent, title))
     }
 
-    fun startReview(bitmap: Bitmap?, service: Boolean) {
+    fun startReview(bitmap: Bitmap?, service: Boolean, gps: GpsFix?) {
         if (bitmap == null) {
-            pending = Pending(null, service, null, true)
+            pending = Pending(null, service, null, true, gps)
             return
         }
-        pending = Pending(bitmap, service)
+        pending = Pending(bitmap, service, gps = gps)
+        val unit = state.active()
         MeterOcr.read(
             bitmap = bitmap,
-            lastHm = state.sorted().lastOrNull()?.hm,
+            lastHm = unit?.sorted()?.lastOrNull()?.hm,
             onResult = { res -> pending = pending?.copy(ocr = res, ocrDone = true) },
             onError = { err ->
                 pending = pending?.copy(ocrDone = true)
@@ -116,22 +128,35 @@ fun App() {
     }
 
     fun decodeAndReview(source: ImageDecoder.Source, service: Boolean) {
+        val gps = LocationHelper.lastKnown(context)
         runCatching { Watermark.decode(source) }
-            .onSuccess { startReview(it, service) }
+            .onSuccess { startReview(it, service, gps) }
             .onFailure { message = "Foto tidak bisa dibuka: ${it.message}" }
     }
 
     fun saveReading(p: Pending, hm: Double, operator: String, service: Boolean) {
+        val unit = state.active() ?: return
         val now = System.currentTimeMillis()
         val bmp = p.bitmap
-        val photoFile = if (bmp != null) File(File(context.filesDir, "photos"), "$now.jpg") else null
+        val photoFile = if (bmp != null) {
+            File(File(context.filesDir, "photos/${unit.id}"), "$now.jpg")
+        } else null
 
-        val draft = Reading(now, hm, operator, photoFile?.absolutePath, service)
-        val newState = state.copy(readings = state.readings + draft)
-        val summary = summarize(newState) ?: return
+        val draft = Reading(
+            timeMillis = now,
+            hm = hm,
+            operator = operator,
+            photoPath = photoFile?.absolutePath,
+            isService = service,
+            latitude = p.gps?.latitude,
+            longitude = p.gps?.longitude
+        )
+        val newUnit = unit.copy(readings = unit.readings + draft)
+        val newState = state.copy(units = state.units.map { if (it.id == unit.id) newUnit else it })
+        val summary = summarize(newUnit) ?: return
 
         if (bmp != null && photoFile != null) {
-            Watermark.save(Watermark.stamp(bmp, watermarkLines(newState, summary, draft)), photoFile)
+            Watermark.save(Watermark.stamp(bmp, watermarkLines(newUnit, summary, draft)), photoFile)
         }
         commit(newState)
         pending = null
@@ -142,20 +167,32 @@ fun App() {
         }
     }
 
+    // Permissions
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { /* hasil diabaikan; GPS opsional */ }
+
+    LaunchedEffect(Unit) {
+        val perms = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= 33) {
+            perms += Manifest.permission.POST_NOTIFICATIONS
+        }
+        permissionLauncher.launch(perms.toTypedArray())
+    }
+
     val takePhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { ok ->
-        if (ok) {
-            decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
-        }
+        if (ok) decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
     }
 
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        if (uri != null) {
-            decodeAndReview(ImageDecoder.createSource(context.contentResolver, uri), false)
-        }
+        if (uri != null) decodeAndReview(ImageDecoder.createSource(context.contentResolver, uri), false)
     }
 
     val restorePicker = rememberLauncherForActivityResult(
@@ -166,11 +203,11 @@ fun App() {
             context.contentResolver.openInputStream(uri)?.use { stream ->
                 val text = stream.bufferedReader().readText()
                 val restored = parseState(text)
-                if (restored.readings.isEmpty() && restored.siteName.isBlank()) {
+                if (restored.units.isEmpty()) {
                     message = "File backup tidak valid atau kosong."
                 } else {
                     commit(restored)
-                    message = "Restore berhasil. ${restored.readings.size} catatan dimuat."
+                    message = "Restore berhasil. ${restored.units.size} unit, ${restored.units.sumOf { it.readings.size }} catatan."
                     showSettings = false
                 }
             } ?: run { message = "Tidak bisa membaca file." }
@@ -184,67 +221,95 @@ fun App() {
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) }
-    ) { innerPadding ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             if (showSettings) {
                 SettingsScreen(
                     state = state,
-                    onSave = { newState ->
-                        commit(newState)
-                        showSettings = false
-                        message = "Pengaturan disimpan"
+                    onSaveUnit = { updated ->
+                        val units = if (state.units.any { it.id == updated.id }) {
+                            state.units.map { if (it.id == updated.id) updated else it }
+                        } else state.units + updated
+                        commit(state.copy(units = units, activeUnitId = updated.id))
+                        message = "Unit disimpan"
+                    },
+                    onAddUnit = { name, site, limit ->
+                        val u = UnitMachine(
+                            id = UUID.randomUUID().toString(),
+                            name = name,
+                            siteName = site,
+                            serviceLimit = limit
+                        )
+                        commit(state.copy(units = state.units + u, activeUnitId = u.id))
+                        message = "Unit \"$name\" ditambahkan"
+                    },
+                    onDeleteUnit = { id ->
+                        val remaining = state.units.filter { it.id != id }
+                        commit(
+                            state.copy(
+                                units = remaining,
+                                activeUnitId = remaining.firstOrNull()?.id
+                            )
+                        )
+                        message = "Unit dihapus"
                     },
                     onExportCsv = {
                         runCatching {
-                            val file = Export.writeCsv(context, state)
-                            shareFile(file, "text/csv", "Export HM Tracker")
+                            shareFile(Export.writeCsv(context, state), "text/csv", "Export HM Tracker")
                         }.onFailure { message = "Export gagal: ${it.message}" }
                     },
                     onBackup = {
                         runCatching {
-                            val file = Export.writeBackup(context, state)
-                            shareFile(file, "application/json", "Backup HM Tracker")
+                            shareFile(Export.writeBackup(context, state), "application/json", "Backup HM Tracker")
                         }.onFailure { message = "Backup gagal: ${it.message}" }
                     },
                     onRestore = { restorePicker.launch("application/json") },
                     onBack = {
-                        if (state.siteName.isBlank()) {
-                            message = "Isi Tempat dulu sebelum kembali."
+                        if (state.units.isEmpty()) {
+                            message = "Tambah minimal 1 unit dulu."
                         } else {
                             showSettings = false
                         }
                     }
                 )
             } else {
-                HomeScreen(
-                    state = state,
-                    onFoto = {
-                        captureService = false
-                        takePhoto.launch(captureUri)
-                    },
-                    onServiceFoto = {
-                        captureService = true
-                        takePhoto.launch(captureUri)
-                    },
-                    onGaleri = {
-                        pickPhoto.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    onManual = { startReview(null, false) },
-                    onSettings = { showSettings = true },
-                    onDeleteRequest = { toDelete = it }
-                )
+                val unit = state.active()
+                if (unit == null) {
+                    showSettings = true
+                } else {
+                    HomeScreen(
+                        state = state,
+                        unit = unit,
+                        onSelectUnit = { id -> commit(state.copy(activeUnitId = id)) },
+                        onFoto = {
+                            captureService = false
+                            takePhoto.launch(captureUri)
+                        },
+                        onServiceFoto = {
+                            captureService = true
+                            takePhoto.launch(captureUri)
+                        },
+                        onGaleri = {
+                            pickPhoto.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        onManual = {
+                            startReview(null, false, LocationHelper.lastKnown(context))
+                        },
+                        onSettings = { showSettings = true },
+                        onDeleteRequest = { toDelete = it }
+                    )
+                }
             }
         }
     }
 
     pending?.let { p ->
+        val unit = state.active() ?: return@let
         ReviewDialog(
             pending = p,
-            state = state,
+            unit = unit,
             onConfirm = { hm, op, service -> saveReading(p, hm, op, service) },
             onDismiss = { pending = null }
         )
@@ -254,12 +319,12 @@ fun App() {
         DeleteConfirmDialog(
             reading = r,
             onConfirm = {
-                val newReadings = state.readings.filterNot {
+                val unit = state.active() ?: return@DeleteConfirmDialog
+                val newReadings = unit.readings.filterNot {
                     it.timeMillis == r.timeMillis && it.hm == r.hm
                 }
-                // Hapus file foto jika ada
                 r.photoPath?.let { path -> runCatching { File(path).delete() } }
-                commit(state.copy(readings = newReadings))
+                commit(state.withActive { it.copy(readings = newReadings) })
                 toDelete = null
                 message = "Catatan dihapus"
             },
@@ -271,6 +336,8 @@ fun App() {
 @Composable
 fun HomeScreen(
     state: AppState,
+    unit: UnitMachine,
+    onSelectUnit: (String) -> Unit,
     onFoto: () -> Unit,
     onServiceFoto: () -> Unit,
     onGaleri: () -> Unit,
@@ -278,8 +345,8 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onDeleteRequest: (Reading) -> Unit
 ) {
-    val summary = summarize(state)
-    val history = state.sorted().asReversed()
+    val summary = summarize(unit)
+    val history = unit.sorted().asReversed()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -291,25 +358,30 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("HM Tracker", style = MaterialTheme.typography.headlineSmall)
-                    if (state.siteName.isNotBlank()) {
-                        Text(
-                            state.siteName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Text("HM Tracker", style = MaterialTheme.typography.headlineSmall)
                 TextButton(onClick = onSettings) { Text("Pengaturan") }
             }
         }
-        item { StatusCard(summary, state.serviceLimit) }
+        if (state.units.size > 1) {
+            item {
+                UnitPicker(
+                    units = state.units,
+                    activeId = unit.id,
+                    onSelect = onSelectUnit
+                )
+            }
+        } else {
+            item {
+                Text(
+                    unit.name + if (unit.siteName.isNotBlank()) " · ${unit.siteName}" else "",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+        item { StatusCard(summary, unit.serviceLimit) }
         item { Text("Catat HM", style = MaterialTheme.typography.titleMedium) }
         item {
-            Button(onClick = onFoto, modifier = Modifier.fillMaxWidth()) {
-                Text("Foto HM")
-            }
+            Button(onClick = onFoto, modifier = Modifier.fillMaxWidth()) { Text("Foto HM") }
         }
         item {
             OutlinedButton(onClick = onServiceFoto, modifier = Modifier.fillMaxWidth()) {
@@ -397,16 +469,10 @@ fun StatusCard(summary: Summary?, limit: Double) {
                     }
                 }
                 summary.hoursPerDay?.let {
-                    Text(
-                        "Rata-rata ${fmtHm(it)} jam per hari",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Rata-rata ${fmtHm(it)} jam per hari", style = MaterialTheme.typography.bodySmall)
                 }
                 summary.estimateMillis?.let {
-                    Text(
-                        "Perkiraan wajib servis ${fmtDate(it)}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Perkiraan wajib servis ${fmtDate(it)}", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -427,10 +493,7 @@ fun HistoryRow(r: Reading, onLongClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = {},
-                onLongClick = onLongClick
-            )
+            .combinedClickable(onClick = {}, onLongClick = onLongClick)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -441,6 +504,13 @@ fun HistoryRow(r: Reading, onLongClick: () -> Unit) {
                 Text(fmtDateTime(r.timeMillis), style = MaterialTheme.typography.bodySmall)
                 val op = if (r.operator.isBlank()) "" else "  ·  ${r.operator}"
                 Text("HM ${fmtHm(r.hm)} jam$op", style = MaterialTheme.typography.bodyLarge)
+                if (r.latitude != null && r.longitude != null) {
+                    Text(
+                        "GPS ${fmtCoord(r.latitude, r.longitude)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             if (r.isService) {
                 Text(

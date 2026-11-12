@@ -4,8 +4,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-const val WARNING_WINDOW_HOURS = 20.0   // status kuning saat sisa <= 20 jam
-const val BIG_JUMP_HOURS = 100.0        // lompatan HM di atas ini diberi peringatan
+const val WARNING_WINDOW_HOURS = 20.0
+const val BIG_JUMP_HOURS = 100.0
 private const val DAY_MS = 86_400_000.0
 private val LOCALE_ID: Locale = Locale.forLanguageTag("id-ID")
 
@@ -30,20 +30,21 @@ fun fmtHm(v: Double): String = String.format(LOCALE_ID, "%.1f", v)
 fun fmtDate(ms: Long): String = SimpleDateFormat("dd MMM yyyy", LOCALE_ID).format(Date(ms))
 fun fmtDateTime(ms: Long): String = SimpleDateFormat("dd MMM yyyy HH:mm", LOCALE_ID).format(Date(ms))
 fun fmtTime(ms: Long): String = SimpleDateFormat("HH:mm", LOCALE_ID).format(Date(ms))
+fun fmtCoord(lat: Double, lon: Double): String =
+    String.format(LOCALE_ID, "%.5f, %.5f", lat, lon)
 
 private const val AMBER = "#FAC775"
 private const val TEAL = "#9FE1CB"
 private const val BLUE = "#85B7EB"
 private const val WHITE = "#FFFFFF"
 
-fun summarize(state: AppState): Summary? {
-    val sorted = state.sorted()
+fun summarize(unit: UnitMachine): Summary? {
+    val sorted = unit.sorted()
     if (sorted.isEmpty()) return null
 
-    // Titik awal = servis terakhir. Kalau belum pernah servis, pakai catatan pertama.
     val start = sorted.lastOrNull { it.isService } ?: sorted.first()
     val last = sorted.last()
-    val limit = state.serviceLimit
+    val limit = unit.serviceLimit
 
     val used = (last.hm - start.hm).coerceAtLeast(0.0)
     val remaining = limit - used
@@ -53,7 +54,6 @@ fun summarize(state: AppState): Summary? {
         else -> Status.GREEN
     }
 
-    // Perkiraan tanggal hanya dihitung setelah data minimal 1 hari supaya tidak meleset.
     val elapsedDays = (last.timeMillis - start.timeMillis) / DAY_MS
     val perDay = if (elapsedDays >= 1.0 && used > 0.0) used / elapsedDays else null
     val estimate = perDay?.let {
@@ -72,34 +72,24 @@ fun summarize(state: AppState): Summary? {
     )
 }
 
-/** Pesan error yang membuat data tidak boleh disimpan. */
-fun blockingError(hm: Double, state: AppState, isService: Boolean): String? {
+fun blockingError(hm: Double, unit: UnitMachine, isService: Boolean): String? {
     if (isService) return null
-    val last = state.sorted().lastOrNull() ?: return null
+    val last = unit.sorted().lastOrNull() ?: return null
     return if (hm < last.hm) {
         "HM lebih kecil dari pembacaan terakhir (${fmtHm(last.hm)}). Periksa angkanya."
-    } else {
-        null
-    }
+    } else null
 }
 
-/** Peringatan yang tidak menghalangi penyimpanan. */
-fun softWarning(hm: Double, state: AppState, isService: Boolean): String? {
+fun softWarning(hm: Double, unit: UnitMachine, isService: Boolean): String? {
     if (isService) return null
-    val last = state.sorted().lastOrNull() ?: return null
+    val last = unit.sorted().lastOrNull() ?: return null
     val jump = hm - last.hm
     return if (jump > BIG_JUMP_HOURS) {
         "Selisih ${fmtHm(jump)} jam dari pembacaan terakhir cukup besar. Pastikan angkanya benar."
-    } else {
-        null
-    }
+    } else null
 }
 
-/**
- * Baris watermark foto. Tanggal, jam, dan operator diberi bingkai.
- * Operator hanya muncul jika diisi. Warna status mengikuti status Lancar, Peringatan, atau Wajib servis.
- */
-fun watermarkLines(state: AppState, summary: Summary, reading: Reading): List<List<Seg>> {
+fun watermarkLines(unit: UnitMachine, summary: Summary, reading: Reading): List<List<Seg>> {
     val statusColor = when (summary.status) {
         Status.GREEN -> "#C0DD97"
         Status.YELLOW -> "#FAC775"
@@ -110,12 +100,18 @@ fun watermarkLines(state: AppState, summary: Summary, reading: Reading): List<Li
         Seg(fmtDate(reading.timeMillis), AMBER, framed = true),
         Seg(fmtTime(reading.timeMillis), AMBER, framed = true)
     )
+    lines += listOf(Seg(unit.name, TEAL, framed = true))
     if (reading.operator.isNotBlank()) {
         lines += listOf(Seg("Operator: ${reading.operator}", TEAL, framed = true))
     }
     lines += listOf(Seg("HM: ${fmtHm(reading.hm)} jam${if (reading.isService) " (SERVIS)" else ""}", WHITE))
     lines += listOf(Seg("Pemakaian: ${fmtHm(summary.used)} jam | Sisa: ${fmtHm(summary.remaining)} jam", BLUE))
     lines += listOf(Seg("Status: ${summary.status.label} | Wajib servis di HM ${fmtHm(summary.limitHm)}", statusColor))
-    lines += listOf(Seg("Tempat: ${state.siteName}", WHITE))
+    if (unit.siteName.isNotBlank()) {
+        lines += listOf(Seg("Tempat: ${unit.siteName}", WHITE))
+    }
+    if (reading.latitude != null && reading.longitude != null) {
+        lines += listOf(Seg("GPS: ${fmtCoord(reading.latitude, reading.longitude)}", WHITE))
+    }
     return lines
 }
