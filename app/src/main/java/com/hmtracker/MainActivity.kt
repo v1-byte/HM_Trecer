@@ -10,6 +10,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.compose.animation.animateContentSize
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -108,6 +109,8 @@ fun App() {
     var hd by remember { mutableStateOf(false) }
     var zoom by remember { mutableStateOf(1f) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var availableUpdate by remember { mutableStateOf<AppUpdate?>(null) }
+    var updateProgress by remember { mutableStateOf<Int?>(null) }
 
     fun commit(newState: AppState) {
         state = newState
@@ -216,6 +219,10 @@ fun App() {
         )
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         multiPermissionLauncher.launch(perms.toTypedArray())
+    }
+
+    LaunchedEffect(Unit) {
+        UpdateManager.check { availableUpdate = it }
     }
 
     val pickPhoto = rememberLauncherForActivityResult(
@@ -379,6 +386,33 @@ fun App() {
             onDismiss = { toDelete = null }
         )
     }
+
+    availableUpdate?.let { update ->
+        if (!showProfile) {
+            UpdateDialog(
+                update = update,
+                progress = updateProgress,
+                onUpdate = {
+                    updateProgress = 0
+                    UpdateManager.download(
+                        context = context,
+                        update = update,
+                        onProgress = { updateProgress = it },
+                        onDone = { apk ->
+                            updateProgress = null
+                            availableUpdate = null
+                            UpdateManager.install(context, apk)
+                        },
+                        onError = {
+                            updateProgress = null
+                            message = "Download update gagal. Coba lagi nanti."
+                        }
+                    )
+                },
+                onDismiss = { availableUpdate = null }
+            )
+        }
+    }
 }
 
 /* ========== ONBOARDING ========== */
@@ -388,7 +422,8 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
-            .padding(24.dp),
+            .padding(24.dp)
+            .animateContentSize(),
         verticalArrangement = Arrangement.Center
     ) {
         Text(
@@ -401,6 +436,12 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
             "Catat jam meter alat berat",
             fontSize = 16.sp,
             color = Color(0xFF546E7A)
+        )
+        Text(
+            "Panduan penggunaan pertama: isi profil → tambah unit → simpan SMR → catat HM rutin.",
+            fontSize = 13.sp,
+            color = Color(0xFF37474F),
+            modifier = Modifier.padding(top = 8.dp)
         )
         Spacer(Modifier.height(32.dp))
 
@@ -416,7 +457,7 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text("Tambah unit / alat", fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     Text(
-                        "Contoh: Excavator 01, Dozer 02, Dump Truck 03",
+                        "Isi nama unit dan lokasi kerja. Satu aplikasi dapat menyimpan banyak unit.",
                         color = Color(0xFF607D8B),
                         fontSize = 13.sp
                     )
@@ -446,7 +487,7 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
                 Column {
                     Text("Foto meter HM (titik awal)", fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     Text(
-                        "Setelah unit ada, tekan tombol oranye lalu foto angka di meter jam.",
+                        "Setelah unit ada, ambil foto angka meter dan simpan sebagai SMR untuk memulai perhitungan.",
                         color = Color(0xFF5D4037),
                         fontSize = 13.sp
                     )
@@ -466,7 +507,7 @@ fun OnboardingScreen(onAddUnit: () -> Unit, onRestore: () -> Unit) {
                 Column {
                     Text("Catat rutin setiap hari", fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     Text(
-                        "Tekan \"Foto HM\" untuk pembacaan berikutnya. Status servis otomatis terhitung.",
+                        "Setiap pembacaan akan diberi watermark, GPS jika diizinkan, dan status servis otomatis.",
                         color = Color(0xFF37474F),
                         fontSize = 13.sp
                     )
@@ -789,7 +830,7 @@ fun StatusCard(summary: Summary?, limit: Double) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
         colors = CardDefaults.cardColors(containerColor = bg as Color),
         elevation = CardDefaults.cardElevation(0.dp),
         shape = RoundedCornerShape(22.dp)

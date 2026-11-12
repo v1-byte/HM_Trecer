@@ -1,5 +1,12 @@
 # Catatan Perubahan HM Tracker
 
+## 1.5.0 — Panduan awal, animasi, dan update APK
+
+- Panduan penggunaan pertama menjelaskan urutan profil, tambah unit, simpan SMR, dan pencatatan rutin.
+- Animasi layout ditambahkan pada onboarding dan kartu status servis.
+- Aplikasi memeriksa GitHub Release terbaru, menampilkan catatan versi, mengunduh APK setelah persetujuan, dan membuka installer Android.
+- Instalasi tetap memerlukan konfirmasi pengguna sesuai keamanan Android; tidak ada pemasangan diam-diam.
+
 Dokumen ini mencatat perubahan yang diterapkan pada repository `v1-byte/HM_Trecer` sampai build release camera-first terakhir.
 
 ## 1.4.0 — Produksi (versionCode 6)

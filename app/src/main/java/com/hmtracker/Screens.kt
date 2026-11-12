@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -400,4 +401,39 @@ fun StepBadge(number: String, color: Color) {
     ) {
         Text(number, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
+}
+
+@Composable
+fun UpdateDialog(
+    update: AppUpdate,
+    progress: Int?,
+    onUpdate: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (progress == null) onDismiss() },
+        title = { Text("Update tersedia", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("HM Tracker versi ${update.version} sudah tersedia.")
+                Text("Perubahan terbaru:", fontWeight = FontWeight.SemiBold)
+                Text(update.notes.take(600).ifBlank { "Peningkatan stabilitas dan fitur aplikasi." }, fontSize = 13.sp)
+                if (progress != null) {
+                    LinearProgressIndicator(
+                        progress = { progress / 100f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Mengunduh APK… $progress%", fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onUpdate, enabled = progress == null) {
+                Text(if (progress == null) "Update sekarang" else "Mengunduh…")
+            }
+        },
+        dismissButton = {
+            if (progress == null) TextButton(onClick = onDismiss) { Text("Nanti") }
+        }
+    )
 }

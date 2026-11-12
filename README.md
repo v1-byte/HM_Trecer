@@ -2,7 +2,7 @@
 
 Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitung pemakaian sejak servis, watermark GPS, dan notifikasi peringatan servis.
 
-**Versi aplikasi: 1.4.1 — kamera langsung di aplikasi, popup pengguna, SMR dan Next Maintenance**
+**Versi aplikasi: 1.5.0 — panduan awal, animasi UI, SMR, Next Maintenance, dan update APK**
 
 ## Build release (produksi)
 
@@ -43,6 +43,9 @@ Catatan perubahan lengkap tersedia di [`docs/CATATAN-PERUBAHAN.md`](docs/CATATAN
 - Export CSV & Backup/Restore JSON
 - Hapus catatan (long-press)
 - **APK signed release** (siap instalasi tanpa debug)
+- **Panduan penggunaan pertama** — profil, unit, SMR, lalu pencatatan rutin
+- **Animasi UI** pada perubahan status dan layout
+- **Pemeriksa update APK** dari GitHub Release resmi, dengan konfirmasi instalasi Android
 
 ## Cara memasang
 
