@@ -137,6 +137,12 @@ fun App() {
 
     fun saveReading(p: Pending, hm: Double, operator: String, service: Boolean) {
         val unit = state.active() ?: return
+        val currentSummary = summarize(unit)
+        if (!service && currentSummary != null && currentSummary.lastHm >= currentSummary.limitHm) {
+            pending = null
+            message = "Next Maintenance ${fmtHm(currentSummary.limitHm)} jam tercapai. Hentikan unit untuk servis."
+            return
+        }
         val now = System.currentTimeMillis()
         val bmp = p.bitmap
         val photoFile = if (bmp != null) {
@@ -174,7 +180,16 @@ fun App() {
             onResult = { res ->
                 val updated = pending?.copy(ocr = res, ocrDone = true)
                 pending = updated
-                if (res.hmCandidates.isEmpty()) {
+                val candidate = res.hmCandidates.firstOrNull()
+                val active = state.active()
+                if (updated != null && candidate != null && active != null && !service) {
+                    val error = blockingError(candidate, active, false)
+                    if (error == null) {
+                        saveReading(updated, candidate, "", false)
+                    } else {
+                        message = error
+                    }
+                } else if (res.hmCandidates.isEmpty()) {
                     message = "Angka HM belum terbaca. Foto ulang dengan meter lebih dekat."
                 }
             },
@@ -205,20 +220,6 @@ fun App() {
             else message = "Izin kamera ditolak. Aktifkan lagi lewat tombol Pengaturan HP."
         }
         pendingCameraAction = null
-    }
-
-    val multiPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { cameraGranted = hasCameraPermission() }
-
-    LaunchedEffect(Unit) {
-        val perms = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.CAMERA
-        )
-        if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
-        multiPermissionLauncher.launch(perms.toTypedArray())
     }
 
     LaunchedEffect(Unit) {

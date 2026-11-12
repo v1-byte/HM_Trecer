@@ -2,7 +2,7 @@
 
 Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitung pemakaian sejak servis, watermark GPS, dan notifikasi peringatan servis.
 
-**Versi aplikasi: 1.5.0 — panduan awal, animasi UI, SMR, Next Maintenance, dan update APK**
+**Versi aplikasi: 1.5.1 — SMR, foto HM otomatis, Next Maintenance, dan update APK**
 
 ## Build release (produksi)
 
@@ -72,6 +72,8 @@ Setelah foto disimpan, watermark foto berisi waktu, unit, HM, lokasi/GPS, pemaka
 1. Aplikasi membuka **Pengaturan**. Tambah unit (contoh: `Excavator 01`), isi tempat & batas servis, Simpan.
 2. Tekan **Foto HM Servis (titik awal)**, cek angka, Simpan.
 3. Pembacaan berikutnya: **Foto HM**.
+
+Setelah SMR awal tersimpan, alur harian cukup: **tekan Foto HM → OCR membaca otomatis → catatan tersimpan otomatis**. Input manual hanya dipakai jika angka pada foto tidak terbaca atau perlu koreksi. Ketika Next Maintenance tercapai, pencatatan berikutnya dikunci sampai pengguna membuat titik servis baru.
 
 ## Cara kerja sistem
 

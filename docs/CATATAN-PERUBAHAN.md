@@ -1,5 +1,12 @@
 # Catatan Perubahan HM Tracker
 
+## 1.5.1 — Alur foto HM otomatis
+
+- Setelah SMR awal tersimpan, foto HM harian yang berhasil dibaca OCR langsung disimpan otomatis.
+- Input manual hanya menjadi fallback saat OCR gagal atau angka perlu dikoreksi.
+- Setelah Next Maintenance tercapai, pembacaan berikutnya dikunci sampai titik servis baru dibuat.
+- Permission kamera tidak lagi diminta massal saat aplikasi dibuka; izin diminta saat tombol foto digunakan.
+
 ## 1.5.0 — Panduan awal, animasi, dan update APK
 
 - Panduan penggunaan pertama menjelaskan urutan profil, tambah unit, simpan SMR, dan pencatatan rutin.
