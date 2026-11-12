@@ -1,7 +1,9 @@
 package com.hmtracker
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,11 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -34,11 +40,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun ReviewDialog(
@@ -61,67 +71,93 @@ fun ReviewDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (service) "Cek titik awal servis" else "Cek hasil baca HM") },
+        title = {
+            Text(
+                if (service) "Cek titik awal SERVIS" else "Cek angka HM",
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(unit.name, style = MaterialTheme.typography.labelLarge)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(unit.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF1565C0))
+
                 if (!pending.ocrDone) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Text("Membaca angka dari foto…")
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        Text("Sedang membaca angka dari foto…\nTunggu sebentar.")
                     }
                 }
+
                 pending.bitmap?.let { bmp ->
                     Image(
                         bitmap = bmp.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(160.dp),
+                        contentDescription = "Foto meter",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Fit
                     )
                 }
+
                 if (pending.ocrDone) {
                     val cands = ocr?.hmCandidates.orEmpty()
-                    if (cands.size > 1) {
-                        Text("Kandidat HM dari foto (ketuk untuk pilih):")
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            cands.forEach { c ->
-                                TextButton(onClick = { hmText = fmtHm(c) }) { Text(fmtHm(c)) }
+                    if (cands.isNotEmpty()) {
+                        Text("Angka terdeteksi (ketuk untuk pilih):", fontSize = 13.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            cands.take(4).forEach { c ->
+                                OutlinedButton(onClick = { hmText = fmtHm(c) }) {
+                                    Text(fmtHm(c), fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
+
                     OutlinedTextField(
                         value = hmText,
                         onValueChange = { hmText = it },
-                        label = { Text("HM meter (jam)") },
+                        label = { Text("Angka HM (jam)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     OutlinedTextField(
                         value = opText,
                         onValueChange = { opText = it },
-                        label = { Text("Operator (boleh kosong)") },
+                        label = { Text("Nama operator (opsional)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = service, onCheckedChange = { service = it })
                         Text("Ini titik awal servis")
                     }
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    warning?.let { Text(it, color = Color(0xFFEF6C00)) }
+
+                    error?.let {
+                        Text(it, color = Color(0xFFC62828), fontWeight = FontWeight.Medium)
+                    }
+                    warning?.let {
+                        Text(it, color = Color(0xFFEF6C00))
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = canSave, onClick = { hm?.let { onConfirm(it, opText.trim(), service) } }) {
-                Text("Simpan")
-            }
+            Button(
+                enabled = canSave,
+                onClick = { hm?.let { onConfirm(it, opText.trim(), service) } },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+            ) { Text("SIMPAN", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Batal") }
+        }
     )
 }
 
@@ -129,17 +165,15 @@ fun ReviewDialog(
 fun DeleteConfirmDialog(reading: Reading, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Hapus catatan?") },
+        title = { Text("Hapus catatan ini?") },
         text = {
-            Text(
-                "HM ${fmtHm(reading.hm)} jam · ${fmtDateTime(reading.timeMillis)}" +
-                    if (reading.isService) " (titik servis)" else ""
-            )
+            Text("HM ${fmtHm(reading.hm)} jam\n${fmtDateTime(reading.timeMillis)}")
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Hapus", color = MaterialTheme.colorScheme.error)
-            }
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+            ) { Text("Hapus") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
     )
@@ -160,14 +194,14 @@ fun UnitPicker(
             value = active?.name ?: "Pilih unit",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Unit / Alat") },
+            label = { Text("Unit yang aktif") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth()
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             units.forEach { u ->
                 DropdownMenuItem(
-                    text = { Text(u.name) },
+                    text = { Text(u.name, fontWeight = if (u.id == activeId) FontWeight.Bold else FontWeight.Normal) },
                     onClick = {
                         onSelect(u.id)
                         expanded = false
@@ -193,7 +227,7 @@ fun SettingsScreen(
     var name by remember(active?.id) { mutableStateOf(active?.name ?: "") }
     var site by remember(active?.id) { mutableStateOf(active?.siteName ?: "") }
     var limit by remember(active?.id) { mutableStateOf(fmtHm(active?.serviceLimit ?: 200.0)) }
-    var showAdd by remember { mutableStateOf(false) }
+    var showAdd by remember { mutableStateOf(state.units.isEmpty()) }
     var newName by remember { mutableStateOf("") }
     var newSite by remember { mutableStateOf("") }
     var newLimit by remember { mutableStateOf("200") }
@@ -203,23 +237,23 @@ fun SettingsScreen(
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Pengaturan", style = MaterialTheme.typography.headlineSmall)
+        Text("Pengaturan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
         if (active != null) {
-            Text("Unit aktif", style = MaterialTheme.typography.titleMedium)
+            Text("Unit aktif", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nama unit / alat") },
+                label = { Text("Nama unit") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = site,
                 onValueChange = { site = it },
-                label = { Text("Tempat / lokasi") },
+                label = { Text("Lokasi / tempat kerja") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -241,59 +275,68 @@ fun SettingsScreen(
                         )
                     )
                 },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Simpan unit ini") }
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+            ) { Text("Simpan perubahan", fontWeight = FontWeight.Bold) }
 
             if (state.units.size > 1) {
                 OutlinedButton(
                     onClick = { onDeleteUnit(active.id) },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Hapus unit ini", color = MaterialTheme.colorScheme.error) }
+                ) { Text("Hapus unit ini", color = Color(0xFFC62828)) }
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-        Text("Kelola unit", style = MaterialTheme.typography.titleMedium)
-        OutlinedButton(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("+ Tambah unit / alat")
-        }
+        HorizontalDivider()
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-        Text("Data", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Export CSV untuk laporan. Backup JSON untuk cadangan. Restore menimpa semua data.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text("Unit lain", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Button(
+            onClick = { showAdd = true },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) { Text("+ Tambah unit baru", fontWeight = FontWeight.Bold) }
+
+        HorizontalDivider()
+
+        Text("Data & cadangan", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         OutlinedButton(
             onClick = onExportCsv,
             enabled = state.units.any { it.readings.isNotEmpty() },
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Export CSV") }
-        OutlinedButton(onClick = onBackup, modifier = Modifier.fillMaxWidth()) { Text("Backup (JSON)") }
-        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restore dari file…") }
+        ) { Text("Export laporan CSV") }
+        OutlinedButton(onClick = onBackup, modifier = Modifier.fillMaxWidth()) {
+            Text("Backup data (JSON)")
+        }
+        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) {
+            Text("Restore dari backup")
+        }
 
         Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onBack) { Text("Kembali") }
+        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("← Kembali ke beranda", fontSize = 16.sp)
+        }
     }
 
     if (showAdd) {
         AlertDialog(
-            onDismissRequest = { showAdd = false },
-            title = { Text("Tambah unit") },
+            onDismissRequest = { if (state.units.isNotEmpty()) showAdd = false },
+            title = { Text("Tambah unit / alat", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Isi nama unit yang akan dicatat jam meternya.")
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("Nama unit (contoh: Excavator 01)") },
+                        label = { Text("Nama (wajib)") },
+                        placeholder = { Text("Contoh: Excavator 01") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = newSite,
                         onValueChange = { newSite = it },
-                        label = { Text("Tempat / lokasi") },
+                        label = { Text("Lokasi (opsional)") },
+                        placeholder = { Text("Contoh: Site A") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -308,7 +351,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     enabled = newName.trim().isNotEmpty(),
                     onClick = {
                         onAddUnit(
@@ -320,10 +363,29 @@ fun SettingsScreen(
                         newName = ""
                         newSite = ""
                         newLimit = "200"
-                    }
-                ) { Text("Tambah") }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                ) { Text("TAMBAH", fontWeight = FontWeight.Bold) }
             },
-            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Batal") } }
+            dismissButton = {
+                if (state.units.isNotEmpty()) {
+                    TextButton(onClick = { showAdd = false }) { Text("Batal") }
+                }
+            }
         )
+    }
+}
+
+/** Step number circle */
+@Composable
+fun StepBadge(number: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(number, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
