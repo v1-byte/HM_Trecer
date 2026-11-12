@@ -36,6 +36,46 @@ Perubahan ini hanya pada lapisan presentasi. Rumus pemakaian sejak titik servis,
 2. Tekan **Foto HM Servis (titik awal)**, cek angka, Simpan.
 3. Pembacaan berikutnya: **Foto HM**.
 
+## Cara kerja sistem
+
+### Pencatatan HM harian
+
+Pilih unit yang benar, lalu tekan **Ambil foto HM sekarang**. Foto meter diproses OCR untuk membaca angka HM. Periksa hasil bacaannya, koreksi bila perlu, isi nama operator secara opsional, kemudian tekan **Simpan**. Jika tidak menggunakan kamera, angka juga dapat dimasukkan melalui **Input manual** atau foto dari **Galeri**.
+
+Setiap catatan menyimpan nilai HM, waktu, operator, foto watermark, dan koordinat GPS bila izin lokasi tersedia. Watermark memuat tanggal, jam, unit, HM, pemakaian sejak servis, sisa interval, status, tempat kerja, dan GPS.
+
+### Dasar perhitungan servis
+
+Pembacaan yang ditandai sebagai titik servis terbaru menjadi dasar perhitungan aktif. Rumusnya:
+
+```text
+Pemakaian = HM terakhir - HM titik servis
+Sisa = Batas servis - Pemakaian
+HM wajib servis = HM titik servis + Batas servis
+```
+
+Contoh: titik servis `984,5 jam`, batas servis `200 jam`, dan pembacaan terakhir `988,6 jam` menghasilkan pemakaian `4,1 jam` serta sisa `195,9 jam`.
+
+### Status dan perkiraan servis
+
+- **Lancar**: sisa lebih dari 20 jam.
+- **Peringatan**: sisa 20 jam atau kurang.
+- **Wajib servis**: pemakaian sudah mencapai atau melewati batas.
+
+Jika tersedia pembacaan dengan jarak waktu minimal satu hari, aplikasi menghitung rata-rata pemakaian per hari dan menampilkan perkiraan tanggal servis. Notifikasi dikirim saat unit masuk status Peringatan atau Wajib servis, jika izin notifikasi diberikan.
+
+### Validasi angka
+
+Pembacaan HM baru yang lebih kecil dari pembacaan terakhir akan ditolak karena dianggap tidak valid. Kenaikan lebih dari 100 jam akan diberi peringatan agar angka diperiksa kembali, tetapi tetap dapat disimpan bila memang benar.
+
+### Setelah servis baru
+
+Setelah alat diservis, tekan **Reset titik awal servis (foto baru)** dan simpan foto HM sebagai titik servis baru. Riwayat lama tetap ada, tetapi perhitungan aktif dimulai dari titik servis terbaru.
+
+### Riwayat, banyak unit, dan cadangan
+
+Setiap unit memiliki riwayat, batas servis, status, dan perhitungan sendiri. Tekan dan tahan catatan pada bagian **Bukti kerja terbaru** untuk menghapusnya. Menu **Pengaturan** menyediakan Export CSV, Backup JSON, dan Restore JSON. Restore dapat menimpa data yang ada, jadi buat backup terlebih dahulu.
+
 ## Multi unit
 
 - Di Pengaturan → **+ Tambah unit / alat**
