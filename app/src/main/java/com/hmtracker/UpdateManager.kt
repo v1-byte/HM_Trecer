@@ -24,9 +24,11 @@ object UpdateManager {
     private const val RELEASE_API = "https://api.github.com/repos/v1-byte/HM_Trecer/releases/latest"
     private val main = Handler(Looper.getMainLooper())
 
-    fun check(onResult: (AppUpdate?) -> Unit) {
+    fun check(context: Context, onResult: (AppUpdate?) -> Unit) {
         Thread {
             val result = runCatching {
+                val localVersion = context.packageManager
+                    .getPackageInfo(context.packageName, 0).versionName.orEmpty()
                 val connection = (URL(RELEASE_API).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 8_000
@@ -42,7 +44,7 @@ object UpdateManager {
                             .firstOrNull { it.optString("name").endsWith(".apk") }
                             ?.optString("browser_download_url")
                     }.orEmpty()
-                    if (tag.isBlank() || apkUrl.isBlank() || !isNewer(tag, BuildConfig.VERSION_NAME)) {
+                    if (tag.isBlank() || apkUrl.isBlank() || !isNewer(tag, localVersion)) {
                         null
                     } else {
                         AppUpdate(tag, apkUrl, json.optString("body", "Update tersedia."))

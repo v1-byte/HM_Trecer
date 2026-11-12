@@ -222,7 +222,7 @@ fun App() {
     }
 
     LaunchedEffect(Unit) {
-        UpdateManager.check { availableUpdate = it }
+        UpdateManager.check(context) { availableUpdate = it }
     }
 
     val pickPhoto = rememberLauncherForActivityResult(
