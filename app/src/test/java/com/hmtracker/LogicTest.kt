@@ -58,7 +58,8 @@ class LogicTest {
         val u = unit(reading(0, 984.5, service = true), reading(5, 1174.5))
         val s = summarize(u)!!
         val lines = watermarkLines(u, s, u.sorted().last(), Profile("Budi", "Operator")).flatten().map { it.text }
-        assertTrue(lines.contains("Target HM wajib servis: 1184,5 jam (95%)"))
+        assertTrue(lines.contains("Next Maintenance: 1184,5 jam (95%)"))
+        assertTrue(lines.contains("SMR: 984,5 jam"))
         assertTrue(lines.contains("Sisa: 10,0 jam | Wajib servis"))
         assertTrue(lines.contains("Nama: Budi"))
     }

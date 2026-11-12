@@ -93,7 +93,7 @@ fun softWarning(hm: Double, unit: UnitMachine, isService: Boolean): String? {
 
 /**
  * Isi watermark foto. Urutan baris: tanggal dan jam, nama pengguna, jabatan/alat, unit, operator,
- * HM sekarang, HM terpakai, HM awal servis, target HM wajib servis dengan persentase, sisa, dan GPS.
+ * HM sekarang, HM terpakai, SMR servis terakhir, Next Maintenance dengan persentase, sisa, dan GPS.
  */
 fun watermarkLines(
     unit: UnitMachine,
@@ -113,8 +113,8 @@ fun watermarkLines(
     }
     lines += listOf(Seg("HM sekarang: ${fmtHm(reading.hm)} jam${if (reading.isService) " (SERVIS)" else ""}", WHITE))
     lines += listOf(Seg("HM terpakai: ${fmtHm(summary.used)} jam", WHITE))
-    lines += listOf(Seg("HM awal servis: ${fmtHm(summary.startHm)} jam", WHITE))
-    lines += listOf(Seg("Target HM wajib servis: ${fmtHm(summary.limitHm)} jam (${pct.roundToInt()}%)", WHITE))
+    lines += listOf(Seg("SMR: ${fmtHm(summary.startHm)} jam", WHITE))
+    lines += listOf(Seg("Next Maintenance: ${fmtHm(summary.limitHm)} jam (${pct.roundToInt()}%)", WHITE))
     lines += listOf(Seg("Sisa: ${fmtHm(summary.remaining)} jam | ${summary.status.label}", WHITE))
     if (unit.siteName.isNotBlank()) {
         lines += listOf(Seg("Tempat: ${unit.siteName}", WHITE))

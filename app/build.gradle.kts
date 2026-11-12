@@ -12,8 +12,8 @@ android {
         applicationId = "com.hmtracker"
         minSdk = 28
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.4.0"
+        versionCode = 7
+        versionName = "1.4.1"
     }
 
     // Kredensial signing TIDAK ditulis di sini. Dibaca dari environment variable

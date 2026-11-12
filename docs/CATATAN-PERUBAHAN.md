@@ -7,9 +7,9 @@ Dokumen ini mencatat perubahan yang diterapkan pada repository `v1-byte/HM_Trece
 - Popup saat aplikasi dibuka: nama pengguna (wajib) dan jabatan/jenis alat, dengan tombol **Selesai!!**.
 - Kamera langsung di aplikasi (CameraX): preview, tombol flash, HD, perbesar, dan perkecil. Deteksi HM mengambil foto dari preview ini.
 - Izin kamera diminta saat aplikasi dibuka. Jika ditolak permanen, muncul popup yang membuka pengaturan aplikasi.
-- Watermark: tanggal dan jam, nama pengguna, jabatan/alat, unit, operator, HM sekarang, HM terpakai, HM awal servis, target HM wajib servis dengan persen, sisa, status, dan GPS. Teks putih rata kanan.
+- Watermark: tanggal dan jam, nama pengguna, jabatan/alat, unit, operator, HM sekarang, HM terpakai, SMR, Next Maintenance dengan persen, sisa, status, dan GPS. Teks putih rata kanan.
 - Status: merah jika sisa 10 jam atau kurang (kuning 20 jam atau kurang). Notifikasi mengikuti status ini.
-- Pengaturan: input target HM wajib servis dalam angka HM meter, dan keterangan arti warna.
+- Pengaturan: input Next Maintenance dalam angka HM meter, dan keterangan arti warna.
 - Tombol Templates dihapus dari layar kamera.
 - Signing dipindah ke environment variable dan GitHub Secrets. Keystore dikeluarkan dari repo.
 - Tambahan tes unit untuk logika status, pemakaian, validasi, dan watermark.

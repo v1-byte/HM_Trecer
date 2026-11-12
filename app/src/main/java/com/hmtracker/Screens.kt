@@ -259,14 +259,14 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "HM awal servis: ${fmtHm(startHm)} jam. Target HM wajib servis diisi dalam angka HM meter.",
+                "SMR: ${fmtHm(startHm)} jam. Next Maintenance diisi dalam angka HM meter.",
                 fontSize = 13.sp,
                 color = Color(0xFF6F7075)
             )
             OutlinedTextField(
                 value = target,
                 onValueChange = { target = it },
-                label = { Text("Target HM wajib servis (jam)") },
+                label = { Text("Next Maintenance (jam)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()

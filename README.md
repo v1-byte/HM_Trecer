@@ -2,7 +2,7 @@
 
 Aplikasi Android untuk mencatat jam meter (Engine Hours) per unit/alat, menghitung pemakaian sejak servis, watermark GPS, dan notifikasi peringatan servis.
 
-**Versi aplikasi: 1.4.0 — kamera langsung di aplikasi, popup pengguna, target HM wajib servis**
+**Versi aplikasi: 1.4.1 — kamera langsung di aplikasi, popup pengguna, SMR dan Next Maintenance**
 
 ## Build release (produksi)
 
@@ -36,7 +36,7 @@ Catatan perubahan lengkap tersedia di [`docs/CATATAN-PERUBAHAN.md`](docs/CATATAN
 - **Multi unit / alat** — banyak excavator, dozer, dll dalam satu app
 - Foto HM + OCR otomatis (ML Kit)
 - Input manual & pilih dari galeri
-- Watermark berwarna: tanggal, jam, **nama unit**, operator, HM sekarang, HM terpakai, HM awal servis, sisa menuju HM wajib servis, status, tempat, **GPS**
+- Watermark berwarna: tanggal, jam, **nama unit**, operator, HM sekarang, HM terpakai, **SMR**, **Next Maintenance**, sisa, status, tempat, **GPS**
 - Tombol **⚙ Pengaturan** tersedia langsung di layar kamera
 - Status Lancar / Peringatan / Wajib servis
 - **Notifikasi** saat mendekati atau melewati batas servis

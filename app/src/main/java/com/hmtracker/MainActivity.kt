@@ -771,7 +771,7 @@ fun HomeScreen(
             Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("HM & SERVIS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF367345))
-                    Text(summary?.let { "HM awal ${fmtHm(it.startHm)}  •  terpakai ${fmtHm(it.used)} jam  •  sisa ${fmtHm(it.remaining)} jam" } ?: "Foto HM servis untuk mulai menghitung", fontSize = 13.sp, color = Color(0xFF245E33))
+                    Text(summary?.let { "SMR ${fmtHm(it.startHm)}  •  terpakai ${fmtHm(it.used)} jam  •  sisa ${fmtHm(it.remaining)} jam" } ?: "Foto HM servis untuk mulai menghitung", fontSize = 13.sp, color = Color(0xFF245E33))
                 }
                 Text(summary?.status?.label ?: "Belum ada data", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF367345))
             }
