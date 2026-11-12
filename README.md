@@ -132,6 +132,7 @@ Di **Pengaturan**:
 ## Status build terakhir
 
 - Commit UI camera-first: `6206590`
-- Commit dokumentasi terakhir: `4a5cc2e`
+- Preview visual: [`preview/hm-tracker-camera-first-preview.png`](preview/hm-tracker-camera-first-preview.png)
+- Commit dokumentasi terakhir: `1123bed`
 - Workflow release berhasil: [Build APK #43171806350](https://github.com/v1-byte/HM_Trecer/actions/runs/43171806350)
 - Artifact: `HMTracker-release/app-release.apk`
