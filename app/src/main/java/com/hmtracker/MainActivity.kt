@@ -2,11 +2,13 @@ package com.hmtracker
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -19,8 +21,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,7 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
 import java.util.UUID
@@ -81,10 +87,11 @@ fun App() {
     val context = LocalContext.current
     var state by remember { mutableStateOf(Storage.load(context)) }
     var pending by remember { mutableStateOf<Pending?>(null) }
-    var showSettings by remember { mutableStateOf(state.units.isEmpty()) }
+    var showSettings by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var captureService by remember { mutableStateOf(false) }
     var toDelete by remember { mutableStateOf<Reading?>(null) }
+    var pendingCameraAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     val captureFile = remember { File(context.cacheDir, "capture.jpg") }
@@ -108,6 +115,10 @@ fun App() {
         }
         context.startActivity(Intent.createChooser(intent, title))
     }
+
+    fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
 
     fun startReview(bitmap: Bitmap?, service: Boolean, gps: GpsFix?) {
         if (bitmap == null) {
@@ -167,10 +178,21 @@ fun App() {
         }
     }
 
-    // Permissions
-    val permissionLauncher = rememberLauncherForActivityResult(
+    // --- Permission launchers ---
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            pendingCameraAction?.invoke()
+        } else {
+            message = "Izin kamera ditolak. Aktifkan di Pengaturan HP → Aplikasi → HM Tracker → Izin."
+        }
+        pendingCameraAction = null
+    }
+
+    val multiPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* hasil diabaikan; GPS opsional */ }
+    ) { /* lokasi & notifikasi opsional */ }
 
     LaunchedEffect(Unit) {
         val perms = mutableListOf(
@@ -180,19 +202,42 @@ fun App() {
         if (Build.VERSION.SDK_INT >= 33) {
             perms += Manifest.permission.POST_NOTIFICATIONS
         }
-        permissionLauncher.launch(perms.toTypedArray())
+        multiPermissionLauncher.launch(perms.toTypedArray())
     }
 
     val takePhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { ok ->
-        if (ok) decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
+        if (ok && captureFile.exists() && captureFile.length() > 0) {
+            decodeAndReview(ImageDecoder.createSource(captureFile), captureService)
+        } else if (ok) {
+            message = "Foto kosong. Coba lagi."
+        } else {
+            message = "Kamera dibatalkan."
+        }
     }
 
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        if (uri != null) decodeAndReview(ImageDecoder.createSource(context.contentResolver, uri), false)
+        if (uri != null) {
+            decodeAndReview(ImageDecoder.createSource(context.contentResolver, uri), false)
+        }
+    }
+
+    fun launchCamera(service: Boolean) {
+        captureService = service
+        val action = {
+            // Pastikan file kosong sebelum ambil foto baru
+            captureFile.delete()
+            takePhoto.launch(captureUri)
+        }
+        if (hasCameraPermission()) {
+            action()
+        } else {
+            pendingCameraAction = action
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
     val restorePicker = rememberLauncherForActivityResult(
@@ -221,85 +266,93 @@ fun App() {
         }
     }
 
+    // --- UI ---
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            if (showSettings) {
-                SettingsScreen(
-                    state = state,
-                    onSaveUnit = { updated ->
-                        val units = if (state.units.any { it.id == updated.id }) {
-                            state.units.map { if (it.id == updated.id) updated else it }
-                        } else state.units + updated
-                        commit(state.copy(units = units, activeUnitId = updated.id))
-                        message = "Unit disimpan"
-                    },
-                    onAddUnit = { name, site, limit ->
-                        val u = UnitMachine(
-                            id = UUID.randomUUID().toString(),
-                            name = name,
-                            siteName = site,
-                            serviceLimit = limit
-                        )
-                        commit(state.copy(units = state.units + u, activeUnitId = u.id))
-                        message = "Unit \"$name\" ditambahkan"
-                    },
-                    onDeleteUnit = { id ->
-                        val remaining = state.units.filter { it.id != id }
-                        commit(
-                            state.copy(
-                                units = remaining,
-                                activeUnitId = remaining.firstOrNull()?.id
-                            )
-                        )
-                        message = "Unit dihapus"
-                    },
-                    onExportCsv = {
-                        runCatching {
-                            shareFile(Export.writeCsv(context, state), "text/csv", "Export HM Tracker")
-                        }.onFailure { message = "Export gagal: ${it.message}" }
-                    },
-                    onBackup = {
-                        runCatching {
-                            shareFile(Export.writeBackup(context, state), "application/json", "Backup HM Tracker")
-                        }.onFailure { message = "Backup gagal: ${it.message}" }
-                    },
-                    onRestore = { restorePicker.launch("application/json") },
-                    onBack = {
-                        if (state.units.isEmpty()) {
-                            message = "Tambah minimal 1 unit dulu."
-                        } else {
-                            showSettings = false
-                        }
-                    }
-                )
-            } else {
-                val unit = state.active()
-                if (unit == null) {
-                    showSettings = true
-                } else {
-                    HomeScreen(
-                        state = state,
-                        unit = unit,
-                        onSelectUnit = { id -> commit(state.copy(activeUnitId = id)) },
-                        onFoto = {
-                            captureService = false
-                            takePhoto.launch(captureUri)
-                        },
-                        onServiceFoto = {
-                            captureService = true
-                            takePhoto.launch(captureUri)
-                        },
-                        onGaleri = {
-                            pickPhoto.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        onManual = {
-                            startReview(null, false, LocationHelper.lastKnown(context))
-                        },
-                        onSettings = { showSettings = true },
-                        onDeleteRequest = { toDelete = it }
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            when {
+                // Belum ada unit sama sekali
+                state.units.isEmpty() && !showSettings -> {
+                    OnboardingScreen(
+                        onAddUnit = { showSettings = true },
+                        onRestore = { restorePicker.launch("application/json") }
                     )
+                }
+                showSettings -> {
+                    SettingsScreen(
+                        state = state,
+                        onSaveUnit = { updated ->
+                            val units = if (state.units.any { it.id == updated.id }) {
+                                state.units.map { if (it.id == updated.id) updated else it }
+                            } else state.units + updated
+                            commit(state.copy(units = units, activeUnitId = updated.id))
+                            message = "Unit disimpan"
+                            if (state.units.isEmpty()) showSettings = false
+                        },
+                        onAddUnit = { name, site, limit ->
+                            val u = UnitMachine(
+                                id = UUID.randomUUID().toString(),
+                                name = name,
+                                siteName = site,
+                                serviceLimit = limit
+                            )
+                            commit(state.copy(units = state.units + u, activeUnitId = u.id))
+                            message = "Unit \"$name\" ditambahkan"
+                            showSettings = false
+                        },
+                        onDeleteUnit = { id ->
+                            val remaining = state.units.filter { it.id != id }
+                            commit(
+                                state.copy(
+                                    units = remaining,
+                                    activeUnitId = remaining.firstOrNull()?.id
+                                )
+                            )
+                            message = "Unit dihapus"
+                            if (remaining.isEmpty()) showSettings = false
+                        },
+                        onExportCsv = {
+                            runCatching {
+                                shareFile(Export.writeCsv(context, state), "text/csv", "Export HM Tracker")
+                            }.onFailure { message = "Export gagal: ${it.message}" }
+                        },
+                        onBackup = {
+                            runCatching {
+                                shareFile(Export.writeBackup(context, state), "application/json", "Backup HM Tracker")
+                            }.onFailure { message = "Backup gagal: ${it.message}" }
+                        },
+                        onRestore = { restorePicker.launch("application/json") },
+                        onBack = {
+                            if (state.units.isEmpty()) {
+                                message = "Tambah minimal 1 unit dulu."
+                            } else {
+                                showSettings = false
+                            }
+                        }
+                    )
+                }
+                else -> {
+                    val unit = state.active()
+                    if (unit == null) {
+                        showSettings = true
+                    } else {
+                        HomeScreen(
+                            state = state,
+                            unit = unit,
+                            onSelectUnit = { id -> commit(state.copy(activeUnitId = id)) },
+                            onFoto = { launchCamera(service = false) },
+                            onServiceFoto = { launchCamera(service = true) },
+                            onGaleri = {
+                                pickPhoto.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            onManual = {
+                                startReview(null, false, LocationHelper.lastKnown(context))
+                            },
+                            onSettings = { showSettings = true },
+                            onDeleteRequest = { toDelete = it }
+                        )
+                    }
                 }
             }
         }
@@ -333,6 +386,59 @@ fun App() {
     }
 }
 
+/** Layar pertama kali: belum ada unit. */
+@Composable
+fun OnboardingScreen(
+    onAddUnit: () -> Unit,
+    onRestore: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("HM Tracker", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Catat jam meter alat berat, hitung sisa servis, dan simpan foto ber-watermark.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(32.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Langkah 1", fontWeight = FontWeight.Bold)
+                Text("Tambah unit / alat (contoh: Excavator 01)")
+                Button(onClick = onAddUnit, modifier = Modifier.fillMaxWidth()) {
+                    Text("Tambah unit sekarang")
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Langkah 2 (setelah unit ada)", fontWeight = FontWeight.Bold)
+                Text("1. Tekan \"Foto HM Servis\" → ambil foto meter")
+                Text("2. Cek angka HM, simpan sebagai titik awal")
+                Text("3. Pembacaan berikutnya pakai \"Foto HM\"")
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) {
+            Text("Sudah punya backup? Restore")
+        }
+    }
+}
+
 @Composable
 fun HomeScreen(
     state: AppState,
@@ -347,6 +453,7 @@ fun HomeScreen(
 ) {
     val summary = summarize(unit)
     val history = unit.sorted().asReversed()
+    val hasServicePoint = unit.readings.any { it.isService }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -362,13 +469,10 @@ fun HomeScreen(
                 TextButton(onClick = onSettings) { Text("Pengaturan") }
             }
         }
+
         if (state.units.size > 1) {
             item {
-                UnitPicker(
-                    units = state.units,
-                    activeId = unit.id,
-                    onSelect = onSelectUnit
-                )
+                UnitPicker(units = state.units, activeId = unit.id, onSelect = onSelectUnit)
             }
         } else {
             item {
@@ -378,16 +482,57 @@ fun HomeScreen(
                 )
             }
         }
+
         item { StatusCard(summary, unit.serviceLimit) }
-        item { Text("Catat HM", style = MaterialTheme.typography.titleMedium) }
-        item {
-            Button(onClick = onFoto, modifier = Modifier.fillMaxWidth()) { Text("Foto HM") }
-        }
-        item {
-            OutlinedButton(onClick = onServiceFoto, modifier = Modifier.fillMaxWidth()) {
-                Text("Foto HM Servis (titik awal)")
+
+        // Panduan jika belum ada titik servis
+        if (!hasServicePoint) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Mulai di sini", fontWeight = FontWeight.Bold)
+                        Text("Belum ada titik awal servis. Tekan tombol oranye di bawah, foto meter HM, lalu simpan.")
+                    }
+                }
             }
         }
+
+        item { Text("Catat HM", style = MaterialTheme.typography.titleMedium) }
+
+        // Tombol utama: kalau belum ada service point, highlight Foto Servis
+        if (!hasServicePoint) {
+            item {
+                Button(
+                    onClick = onServiceFoto,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE65100)
+                    )
+                ) {
+                    Text("① Foto HM Servis (titik awal)")
+                }
+            }
+            item {
+                OutlinedButton(onClick = onFoto, modifier = Modifier.fillMaxWidth()) {
+                    Text("Foto HM (setelah titik awal)")
+                }
+            }
+        } else {
+            item {
+                Button(onClick = onFoto, modifier = Modifier.fillMaxWidth()) {
+                    Text("Foto HM")
+                }
+            }
+            item {
+                OutlinedButton(onClick = onServiceFoto, modifier = Modifier.fillMaxWidth()) {
+                    Text("Foto HM Servis (reset titik awal)")
+                }
+            }
+        }
+
         item {
             OutlinedButton(onClick = onGaleri, modifier = Modifier.fillMaxWidth()) {
                 Text("Pilih foto dari galeri")
@@ -395,9 +540,10 @@ fun HomeScreen(
         }
         item {
             OutlinedButton(onClick = onManual, modifier = Modifier.fillMaxWidth()) {
-                Text("Input manual")
+                Text("Input manual (tanpa foto)")
             }
         }
+
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -415,7 +561,12 @@ fun HomeScreen(
             }
         }
         if (history.isEmpty()) {
-            item { Text("Belum ada catatan.") }
+            item {
+                Text(
+                    "Belum ada catatan. Mulai dengan Foto HM Servis.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         items(history, key = { "${it.timeMillis}_${it.hm}" }) { r ->
             HistoryRow(r, onLongClick = { onDeleteRequest(r) })
@@ -440,7 +591,7 @@ fun StatusCard(summary: Summary?, limit: Double) {
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (summary == null) {
-                Text("Belum ada data. Tekan \"Foto HM Servis\" untuk memulai.")
+                Text("Belum ada data. Foto HM Servis dulu untuk memulai.")
             } else {
                 Text("Status: ${summary.status.label}", style = MaterialTheme.typography.titleMedium)
                 Row(
