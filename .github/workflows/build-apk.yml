@@ -29,11 +29,28 @@ jobs:
       - name: Siapkan keystore dari Secrets
         env:
           KEYSTORE_B64: ${{ secrets.HM_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
         run: |
-          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/hmtracker.jks"
-          echo "HM_KEYSTORE_PATH=$RUNNER_TEMP/hmtracker.jks" >> "$GITHUB_ENV"
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "Keystore tidak dikonfigurasi; release akan dibuat unsigned."
+            exit 0
+          fi
 
-      - name: Build release APK (signed)
+          if ! echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/hmtracker.jks"; then
+            echo "::warning::HM_KEYSTORE_BASE64 bukan base64 yang valid; release akan dibuat unsigned."
+            rm -f "$RUNNER_TEMP/hmtracker.jks"
+            exit 0
+          fi
+
+          if keytool -list -keystore "$RUNNER_TEMP/hmtracker.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "HM_KEYSTORE_PATH=$RUNNER_TEMP/hmtracker.jks" >> "$GITHUB_ENV"
+            echo "Keystore valid; release akan ditandatangani."
+          else
+            echo "::warning::Keystore tidak valid atau password salah; release akan dibuat unsigned."
+            rm -f "$RUNNER_TEMP/hmtracker.jks"
+          fi
+
+      - name: Build release APK (signed when keystore is valid)
         env:
           HM_KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
           HM_KEY_ALIAS: ${{ secrets.HM_KEY_ALIAS }}
