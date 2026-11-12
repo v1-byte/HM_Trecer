@@ -628,10 +628,10 @@ fun StatusCard(summary: Summary?, limit: Double) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("STATUS SERVIS", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = (fg as Color).copy(alpha = 0.75f))
-                Text(label as String, fontWeight = FontWeight.Black, fontSize = 13.sp, color = fg, modifier = Modifier.background(Color.White.copy(alpha = 0.65f), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
+                Text(label as String, fontWeight = FontWeight.Black, fontSize = 13.sp, color = fg as Color, modifier = Modifier.background(Color.White.copy(alpha = 0.65f), RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
             }
             if (summary == null) {
-                Text("Foto HM Servis dulu untuk mulai hitung.", color = fg, fontSize = 13.sp)
+                Text("Foto HM Servis dulu untuk mulai hitung.", color = fg as Color, fontSize = 13.sp)
             } else {
                 Row(
                     Modifier.fillMaxWidth(),
