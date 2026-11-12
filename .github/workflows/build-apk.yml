@@ -1,0 +1,56 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Siapkan keystore dari Secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.HM_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/hmtracker.jks"
+          echo "HM_KEYSTORE_PATH=$RUNNER_TEMP/hmtracker.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APK (signed)
+        env:
+          HM_KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
+          HM_KEY_ALIAS: ${{ secrets.HM_KEY_ALIAS }}
+          HM_KEY_PASSWORD: ${{ secrets.HM_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HMTracker-release
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HMTracker-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
