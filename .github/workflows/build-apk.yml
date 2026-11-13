@@ -1,0 +1,73 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Siapkan keystore dari Secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.HM_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "Keystore tidak dikonfigurasi; release akan dibuat dengan debug key untuk testing."
+            exit 0
+          fi
+
+          if ! echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/hmtracker.jks"; then
+            echo "::warning::HM_KEYSTORE_BASE64 bukan base64 yang valid; release akan dibuat dengan debug key untuk testing."
+            rm -f "$RUNNER_TEMP/hmtracker.jks"
+            exit 0
+          fi
+
+          if keytool -list -keystore "$RUNNER_TEMP/hmtracker.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "HM_KEYSTORE_PATH=$RUNNER_TEMP/hmtracker.jks" >> "$GITHUB_ENV"
+            echo "Keystore valid; release akan ditandatangani."
+          else
+            echo "::warning::Keystore tidak valid atau password salah; release akan dibuat dengan debug key untuk testing."
+            rm -f "$RUNNER_TEMP/hmtracker.jks"
+          fi
+
+      - name: Build release APK (signed when keystore is valid)
+        env:
+          HM_KEYSTORE_PASSWORD: ${{ secrets.HM_KEYSTORE_PASSWORD }}
+          HM_KEY_ALIAS: ${{ secrets.HM_KEY_ALIAS }}
+          HM_KEY_PASSWORD: ${{ secrets.HM_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HMTracker-release
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HMTracker-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
